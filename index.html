@@ -14,10 +14,15 @@
         <img src="./kotori_master.png" alt="篝火ことり 公式ビジュアル">
       </div>
       <div class="hero-copy">
-        <p class="kicker">PCAI WEB v0.2</p>
+        <p class="kicker">PCAI WEB v0.3</p>
         <h1>篝火ことり</h1>
         <p class="tagline">声と言葉で世界を立ち上げる、あなたのPCAI。</p>
-        <div class="badges"><span>ブラウザ記憶</span><span id="mode-badge">昼のことり</span><span>公式ビジュアル</span></div>
+        <div class="badges">
+          <span>ブラウザ記憶</span>
+          <span id="mode-badge">昼のことり</span>
+          <span id="llm-status">LLM未接続</span>
+          <span>公式ビジュアル</span>
+        </div>
       </div>
       <button id="about-btn" class="icon-btn" type="button" title="この試作品について">?</button>
     </header>
@@ -27,12 +32,13 @@
         <div id="chat" class="chat" aria-live="polite"></div>
         <form id="chat-form" class="composer">
           <textarea id="message" rows="2" maxlength="800" placeholder="ことりに話しかける…（Enterで送信 / Shift+Enterで改行）" aria-label="メッセージ"></textarea>
-          <button type="submit" class="send">送信</button>
+          <button id="send-btn" type="submit" class="send">送信</button>
         </form>
         <div class="quick-actions">
           <button type="button" data-prompt="こんことー！">こんことー！</button>
           <button type="button" data-prompt="今日のこと、覚えてる？">記憶を聞く</button>
           <button type="button" data-prompt="ちょっと相談してもいい？">相談する</button>
+          <button id="llm-btn" type="button">🔐 AI接続</button>
           <button id="sleep-btn" class="sleep" type="button">🌙 睡眠処理</button>
         </div>
       </section>
@@ -52,24 +58,38 @@
           <label class="file-btn">記憶を読み込む<input id="import-file" type="file" accept="application/json"></label>
           <button id="reset-btn" class="danger" type="button">記憶を初期化</button>
         </div>
-        <p class="privacy">記憶はこのブラウザの localStorage に保存されます。v0.2ではサーバーへ送信しません。</p>
+        <p class="privacy">記憶の正本はこのブラウザの localStorage に保存します。LLM接続時だけ、直近会話と関連記憶の一部をCloudflare Workers AIへ送信します。本人用アクセス鍵は保存しません。</p>
       </aside>
     </section>
   </main>
 
+  <dialog id="llm-dialog" class="llm-dialog">
+    <form method="dialog"><button class="close" aria-label="閉じる">×</button></form>
+    <h2>無料AIへ接続</h2>
+    <p>Cloudflareに登録した本人用 <code>PCAI_ACCESS_TOKEN</code> の値を入力してください。</p>
+    <p class="privacy"><strong>この値はページ内メモリだけに保持し、localStorage・GitHub・会話記憶へ保存しません。</strong> ページを閉じると消えます。ブラウザが保存を提案しても保存しないでください。</p>
+    <label class="token-label" for="llm-token-input">本人用アクセス鍵</label>
+    <input id="llm-token-input" class="token-input" type="password" autocomplete="off" spellcheck="false" placeholder="Cloudflareに登録したランダム文字列">
+    <div class="dialog-actions">
+      <button id="llm-connect-btn" type="button">このページだけ接続</button>
+      <button id="llm-clear-btn" type="button">接続を解除</button>
+    </div>
+  </dialog>
+
   <dialog id="about-dialog">
     <form method="dialog"><button class="close" aria-label="閉じる">×</button></form>
-    <h2>PCAI Web v0.2</h2>
-    <p>「URLを開くだけで篝火ことりに会える」を確認する公開用試作品です。</p>
+    <h2>PCAI Web v0.3</h2>
+    <p>Project Chobitsの自然会話LLM接続を、安全な最小構成で検証する公開用試作品です。</p>
     <ul>
-      <li>篝火ことりの人格・口調・昼夜モードを反映</li>
-      <li>Project Chobitsの公式ビジュアル `kotori_master.png` を表示</li>
-      <li>会話を短期記憶として保存</li>
+      <li>篝火ことりの公式ビジュアル</li>
+      <li>Cloudflare Workers AI無料枠による自然会話</li>
+      <li>本人用アクセス鍵はブラウザ保存しない</li>
+      <li>直近会話と関連記憶だけをLLMへ送る</li>
+      <li>会話を短期記憶としてブラウザ保存</li>
       <li>睡眠処理で長期記憶へcommit</li>
-      <li>ブラウザを閉じても同じ端末なら記憶を継続</li>
-      <li>記憶のJSON書き出し・読み込みで手動移行</li>
+      <li>LLM応答だけではPersona Coreを変更しない</li>
     </ul>
-    <p><strong>現在はLLM未接続の会話デモです。</strong>実LLM版は秘密鍵をブラウザへ置かないため、次段階で安全なバックエンドを接続します。</p>
+    <p><strong>無料AIが利用不能・無料枠超過の場合は有料APIへ切り替えず停止します。</strong></p>
   </dialog>
 
   <script type="module" src="./app.js"></script>
