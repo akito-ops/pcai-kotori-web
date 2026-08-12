@@ -13,9 +13,3 @@ export const pcaiCatalog = Object.freeze({
     [cloudflareWorkersAI.id]: cloudflareWorkersAI
   })
 });
-
-export const defaultSelection = Object.freeze({
-  personaId: kotoriPersona.id,
-  usecaseId: companionUsecase.id,
-  modelId: cloudflareWorkersAI.id
-});
