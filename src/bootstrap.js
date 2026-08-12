@@ -1,6 +1,7 @@
 import { runtime } from './config/runtime.js';
 import { createRuntimeBindings } from './core/runtime-bindings.js';
 import { assertLegacyCompatibility } from './core/legacy-contract.js';
+import { createModelHttpAdapter } from './adapters/model-http.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -41,6 +42,7 @@ try{
   assertSafeRuntime(runtime);
   const bindings = createRuntimeBindings(runtime);
   assertLegacyCompatibility(bindings);
+  const modelAdapter = createModelHttpAdapter(bindings);
 
   // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
   Object.defineProperties(window, {
@@ -52,6 +54,12 @@ try{
     },
     PCAIBindings: {
       value: bindings,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAIModelAdapter: {
+      value: modelAdapter,
       writable: false,
       configurable: false,
       enumerable: false
