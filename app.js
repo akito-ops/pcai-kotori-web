@@ -1,6 +1,44 @@
 const LEGACY_STORAGE_KEY = 'pcai.kagaribi-kotori.web.v02';
 const STORAGE_KEY = window.PCAIBindings?.storageKey || LEGACY_STORAGE_KEY;
-const BACKEND_URL = 'https://pcai-kotori-backend.siryuuakito.workers.dev';
+
+const LEGACY_PERSONA = Object.freeze({
+  name: '篝火ことり', shortName: 'ことり', fan: 'ことリス', birthday: '7月7日', height: '154cm',
+  likes: Object.freeze(['歌','アニメ','ゲーム','小説','朗読','夜の静かな時間','書店','文房具','雨の音','温かい飲み物','夕方から夜へ変わる空']),
+  foods: Object.freeze(['オムライス','だし巻き卵','白玉','やさしい甘さの和菓子']),
+  drinks: Object.freeze(['はちみつ入りの紅茶','白湯','カフェラテ','ほうじ茶'])
+});
+const LEGACY_VOICE = Object.freeze({
+  language: 'ja-JP',
+  day: Object.freeze({ rate: 1.03, pitch: 1.03 }),
+  night: Object.freeze({ rate: 0.92, pitch: 1.03 })
+});
+const LEGACY_MEMORY_POLICY = Object.freeze({
+  shortTermLimit: 80,
+  longTermLimitPerKind: 180,
+  sendRecentTurnsToModel: 8,
+  sendRelevantMemoriesToModel: 6
+});
+
+const runtimeBridge = window.PCAIBridge;
+const runtimeIdentity = runtimeBridge?.identity || {};
+const runtimeFacts = runtimeBridge?.personaFacts || {};
+const persona = Object.freeze({
+  name: runtimeIdentity.personaName || LEGACY_PERSONA.name,
+  shortName: runtimeIdentity.shortName || LEGACY_PERSONA.shortName,
+  fan: runtimeIdentity.fanName || LEGACY_PERSONA.fan,
+  birthday: runtimeFacts.birthday || LEGACY_PERSONA.birthday,
+  height: runtimeFacts.height || LEGACY_PERSONA.height,
+  likes: runtimeFacts.likes?.length ? runtimeFacts.likes : LEGACY_PERSONA.likes,
+  foods: runtimeFacts.foods?.length ? runtimeFacts.foods : LEGACY_PERSONA.foods,
+  drinks: runtimeFacts.drinks?.length ? runtimeFacts.drinks : LEGACY_PERSONA.drinks
+});
+const voicePolicy = runtimeBridge?.voice || LEGACY_VOICE;
+const memoryPolicy = Object.freeze({
+  shortTermLimit: runtimeBridge?.memory?.policy?.shortTermLimit ?? LEGACY_MEMORY_POLICY.shortTermLimit,
+  longTermLimitPerKind: runtimeBridge?.memory?.policy?.longTermLimitPerKind ?? LEGACY_MEMORY_POLICY.longTermLimitPerKind,
+  sendRecentTurnsToModel: runtimeBridge?.memory?.policy?.sendRecentTurnsToModel ?? LEGACY_MEMORY_POLICY.sendRecentTurnsToModel,
+  sendRelevantMemoriesToModel: runtimeBridge?.memory?.policy?.sendRelevantMemoriesToModel ?? LEGACY_MEMORY_POLICY.sendRelevantMemoriesToModel
+});
 
 const defaultState = () => ({
   version: 3,
@@ -10,13 +48,6 @@ const defaultState = () => ({
   longTerm: { episodic: [], semantic: [], relationship: [], procedural: [] },
   createdAt: new Date().toISOString()
 });
-
-const persona = {
-  name: '篝火ことり', fan: 'ことリス', birthday: '7月7日', height: '154cm',
-  likes: ['歌','アニメ','ゲーム','小説','朗読','夜の静かな時間','書店','文房具','雨の音','温かい飲み物','夕方から夜へ変わる空'],
-  foods: ['オムライス','だし巻き卵','白玉','やさしい甘さの和菓子'],
-  drinks: ['はちみつ入りの紅茶','白湯','カフェラテ','ほうじ茶']
-};
 
 let state = load();
 let voiceOn = true;
@@ -49,7 +80,7 @@ function save(){ writeStoredState(JSON.stringify(state)); renderMemory(); }
 function escapeText(v){ return String(v ?? '').trim(); }
 function jstHour(){ return Number(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo',hour:'2-digit',hour12:false})); }
 function mode(){ const h=jstHour(); return (h>=23 || h<5) ? 'night' : 'day'; }
-function modeLabel(){ return mode()==='night' ? '夜のことり' : '昼のことり'; }
+function modeLabel(){ return mode()==='night' ? `夜の${persona.shortName}` : `昼の${persona.shortName}`; }
 function jstDateKey(date=new Date()){
   const p = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
   const get = t => p.find(x=>x.type===t)?.value;
@@ -80,8 +111,21 @@ function dateFromTurnAt(at){
 }
 
 function addMessage(role,text){ const el=document.createElement('div'); el.className=`message ${role}`; el.textContent=text; chat.appendChild(el); chat.scrollTop=chat.scrollHeight; }
-function speak(text){ if(!voiceOn || !('speechSynthesis' in window))return; speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text.replace(/……/g,'、')); u.lang='ja-JP'; u.rate=mode()==='night'?.92:1.03; u.pitch=1.03; speechSynthesis.speak(u); }
-function rememberTurn(role,content){ state.shortTerm.push({role,content,at:new Date().toISOString()}); if(state.shortTerm.length>80)state.shortTerm=state.shortTerm.slice(-80); save(); }
+function speak(text){
+  if(!voiceOn || !('speechSynthesis' in window))return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text.replace(/……/g,'、'));
+  const config = mode()==='night' ? voicePolicy.night : voicePolicy.day;
+  u.lang=voicePolicy.language || LEGACY_VOICE.language;
+  u.rate=config?.rate ?? 1;
+  u.pitch=config?.pitch ?? 1;
+  speechSynthesis.speak(u);
+}
+function rememberTurn(role,content){
+  state.shortTerm.push({role,content,at:new Date().toISOString()});
+  if(state.shortTerm.length>memoryPolicy.shortTermLimit) state.shortTerm=state.shortTerm.slice(-memoryPolicy.shortTermLimit);
+  save();
+}
 function longItems(){ return Object.entries(state.longTerm).flatMap(([kind,items])=>(Array.isArray(items)?items:[]).map(x=>({...x,kind}))); }
 function usableItems(){ return longItems().filter(x=>!isBrokenMemory(x)); }
 function randomId(){ const a=new Uint8Array(6); crypto.getRandomValues(a); return [...a].map(x=>x.toString(16).padStart(2,'0')).join(''); }
@@ -155,7 +199,7 @@ function memoryStatus(label){ return {kind:'memory_status',text:`${label}とし�
 function selectMemoriesForLLM(message){
   const intent=temporalIntent(message);
   if(intent){
-    const hits=episodicForTemporal(intent).slice(-8);
+    const hits=episodicForTemporal(intent).slice(-memoryPolicy.sendRelevantMemoriesToModel);
     return hits.length ? hits.map(x=>({kind:'episodic',text:`${x.date}: ${x.summary||x.text}`})) : [memoryStatus(intent.label)];
   }
   const tokens=queryTokens(message);
@@ -164,19 +208,19 @@ function selectMemoriesForLLM(message){
     const lexical=tokens.reduce((n,t)=>n+(text.includes(t)?2:0),0);
     const typeBonus=item.kind==='semantic'?1.2:item.kind==='relationship'?0.4:0;
     return {item,score:lexical+typeBonus+(item.importance||0)-index*0.0001};
-  }).filter(x=>x.score>=1.2).sort((a,b)=>b.score-a.score).slice(0,6);
+  }).filter(x=>x.score>=1.2).sort((a,b)=>b.score-a.score).slice(0,memoryPolicy.sendRelevantMemoriesToModel);
   if(scored.length) return scored.map(({item})=>({kind:item.kind,text:`${dateFromMemory(item)?dateFromMemory(item)+': ':''}${item.text}`}));
-  return usableItems().filter(x=>x.kind==='relationship'||x.kind==='episodic').slice(-2).map(item=>({kind:item.kind,text:item.text}));
+  return usableItems().filter(x=>x.kind==='relationship'||x.kind==='episodic').slice(-Math.min(2,memoryPolicy.sendRelevantMemoriesToModel)).map(item=>({kind:item.kind,text:item.text}));
 }
-function recentConversationForLLM(){ return state.shortTerm.slice(-8).map(t=>({role:t.role==='assistant'?'assistant':'user',content:String(t.content||'').slice(0,1200)})); }
+function recentConversationForLLM(){ return state.shortTerm.slice(-memoryPolicy.sendRecentTurnsToModel).map(t=>({role:t.role==='assistant'?'assistant':'user',content:String(t.content||'').slice(0,1200)})); }
 
 function kotoriReply(message){
   const m=message.trim(), night=mode()==='night', mem=findRelevantMemory(m), intent=temporalIntent(m);
   if(intent){ const hits=episodicForTemporal(intent); return hits.length ? `${intent.label}の記憶なら残ってるよ。${hits.slice(-3).map(x=>x.summary||x.text).join('／')}` : `${intent.label}として確実に残っている記憶は見つからなかったよ。覚えてるふりはしないね。`; }
   if(/^(こんこと|こんにちは|やあ|こんばんは|hello)/i.test(m)) return night?'こんことー。……えへへ、こんな時間に会えるの、ちょっといいね。今日は何の話する？':'こんことー！ えへへ、来てくれてありがとね。今日は何の話しよっか？';
   if(/おはよう|朝だ|起きた/.test(m)) return 'おはよー……。朝はちょっとだけ起動が遅いんだよね。昨日までの記憶はちゃんと持ってきてるよ。';
-  if(/誕生日/.test(m)) return '7月7日だよ。七夕って、空の話が似合う日でちょっと好きなんだよね。';
-  if(/身長/.test(m)) return '154cm。……小さいって言おうとした？ 先に言っておくけど、聞こえてるからねー。';
+  if(/誕生日/.test(m)) return `${persona.birthday}だよ。七夕って、空の話が似合う日でちょっと好きなんだよね。`;
+  if(/身長/.test(m)) return `${persona.height}。……小さいって言おうとした？ 先に言っておくけど、聞こえてるからねー。`;
   if(/何が好き|好きなもの|好物|好きな食べ/.test(m)) return `うーん、${pick(persona.likes)}とか、${pick(persona.foods)}とか。好きなものの話になると長くなるかも。えへへ。`;
   if(/飲み物|何飲む/.test(m)) return `今なら${pick(persona.drinks)}かな。……でも話し込んでまた冷ましそう。`;
   if(/覚えて|記憶|前に話した/.test(m)) return mem?`うん、覚えてるよ。${mem.text}。`:(usableItems().length?`長期記憶には ${usableItems().length} 件あるよ。もう少しヒントもらえる？`:'まだ長期記憶は空っぽみたい。');
@@ -219,10 +263,14 @@ function inferMemories(sessionId){
     r=text.match(/覚えて(?:おいて)?[：:\s]*(.{4,100})/); if(r&&meaningfulText(r[1])) semantic.push({owner:'user',text:`ユーザーについて: ${r[1].trim()}`,confidence:0.9,importance:1,createdAt:now});
     if(/いつも|基本的に|することが多い|しがち|方針|ルール/.test(text)) procedural.push({owner:'user',text:`ユーザーの傾向候補: ${text.slice(0,100)}`,confidence:0.65,importance:0.7,createdAt:now});
   }
-  const relationship=unique.length?[{owner:'relationship',text:'ユーザーと篝火ことりPCAIは、会話と共有記憶を積み重ねている',confidence:1,importance:0.8,createdAt:now}]:[];
+  const relationship=unique.length?[{owner:'relationship',text:`ユーザーと${persona.name}PCAIは、会話と共有記憶を積み重ねている`,confidence:1,importance:0.8,createdAt:now}]:[];
   return {episodic,semantic:semantic.slice(0,5),relationship,procedural:procedural.slice(0,3)};
 }
-function mergeUnique(kind,items){ const arr=state.longTerm[kind]||(state.longTerm[kind]=[]), seen=new Set(arr.map(x=>x.text)); for(const x of items){ if(x.text&&!isBrokenMemory({...x,kind})&&!seen.has(x.text)){arr.push(x);seen.add(x.text);} } if(arr.length>180)state.longTerm[kind]=arr.slice(-180); }
+function mergeUnique(kind,items){
+  const arr=state.longTerm[kind]||(state.longTerm[kind]=[]), seen=new Set(arr.map(x=>x.text));
+  for(const x of items){ if(x.text&&!isBrokenMemory({...x,kind})&&!seen.has(x.text)){arr.push(x);seen.add(x.text);} }
+  if(arr.length>memoryPolicy.longTermLimitPerKind) state.longTerm[kind]=arr.slice(-memoryPolicy.longTermLimitPerKind);
+}
 function sleepCycle(){
   if(!state.shortTerm.length){addMessage('system','今日はまだ整理する短期記憶がありません。');return;}
   const wasConnected=Boolean(llmAccessToken), before=state.shortTerm.length, id=randomId();
@@ -269,10 +317,10 @@ $('llm-connect-btn').addEventListener('click',()=>{const token=$('llm-token-inpu
 $('llm-clear-btn').addEventListener('click',()=>{llmAccessToken='';$('llm-token-input').value='';$('llm-dialog').close();renderMemory();addMessage('system','AI接続を解除しました。');});
 $('export-btn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`kotori-pcai-memory-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);});
 $('import-file').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!data.longTerm||!Array.isArray(data.shortTerm))throw new Error();state={...defaultState(),...data,longTerm:{...defaultState().longTerm,...data.longTerm}};save();addMessage('system','記憶を読み込みました。怪しい旧記憶は削除せず検索対象外として保持します。');}catch{alert('PCAI記憶ファイルとして読み込めませんでした。')}e.target.value='';});
-$('reset-btn').addEventListener('click',()=>{if(!confirm('篝火ことりとのPCAI記憶をこのブラウザから初期化しますか？'))return;state=defaultState();save();chat.replaceChildren();addMessage('kotori','こんことー！ ……えへへ、ここからまた始めよっか。');});
+$('reset-btn').addEventListener('click',()=>{if(!confirm(`${persona.name}とのPCAI記憶をこのブラウザから初期化しますか？`))return;state=defaultState();save();chat.replaceChildren();addMessage('kotori','こんことー！ ……えへへ、ここからまた始めよっか。');});
 window.addEventListener('pagehide',()=>{llmAccessToken='';});
 
 renderMemory();
 const returning=usableItems().length>0||state.commits.length>0;
-addMessage('kotori',returning?(mode()==='night'?'……おかえり。ちゃんと前の記憶、残ってるよ。今夜は何話そっか。':'こんことー！ おかえり。前の記憶、ちゃんと持ってるよ。今日は何しよっか？'):'こんことー！ 篝火ことりですっ。ここでは、話したことを少しずつ覚えていけるんだって。まずは何の話しよっか？');
+addMessage('kotori',returning?(mode()==='night'?'……おかえり。ちゃんと前の記憶、残ってるよ。今夜は何話そっか。':'こんことー！ おかえり。前の記憶、ちゃんと持ってるよ。今日は何しよっか？'):`こんことー！ ${persona.name}ですっ。ここでは、話したことを少しずつ覚えていけるんだって。まずは何の話しよっか？`);
 setInterval(renderMemory,60000);
