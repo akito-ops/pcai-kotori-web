@@ -1,4 +1,5 @@
-const STORAGE_KEY = 'pcai.kagaribi-kotori.web.v02';
+const LEGACY_STORAGE_KEY = 'pcai.kagaribi-kotori.web.v02';
+const STORAGE_KEY = window.PCAIBindings?.storageKey || LEGACY_STORAGE_KEY;
 const BACKEND_URL = 'https://pcai-kotori-backend.siryuuakito.workers.dev';
 
 const defaultState = () => ({
