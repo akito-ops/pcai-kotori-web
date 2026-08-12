@@ -25,9 +25,19 @@ let sending = false;
 const $ = id => document.getElementById(id);
 const chat = $('chat');
 
+function readStoredState(){
+  const memory = window.PCAIBridge?.memory;
+  if(memory && typeof memory.read === 'function') return memory.read();
+  return localStorage.getItem(STORAGE_KEY);
+}
+function writeStoredState(serialized){
+  const memory = window.PCAIBridge?.memory;
+  if(memory && typeof memory.write === 'function') return memory.write(serialized);
+  return localStorage.setItem(STORAGE_KEY, serialized);
+}
 function load(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readStoredState();
     const loaded = raw ? {...defaultState(), ...JSON.parse(raw)} : defaultState();
     loaded.longTerm = {...defaultState().longTerm, ...(loaded.longTerm || {})};
     loaded.shortTerm = Array.isArray(loaded.shortTerm) ? loaded.shortTerm : [];
@@ -35,7 +45,7 @@ function load(){
     return loaded;
   }catch{return defaultState();}
 }
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); renderMemory(); }
+function save(){ writeStoredState(JSON.stringify(state)); renderMemory(); }
 function escapeText(v){ return String(v ?? '').trim(); }
 function jstHour(){ return Number(new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo',hour:'2-digit',hour12:false})); }
 function mode(){ const h=jstHour(); return (h>=23 || h<5) ? 'night' : 'day'; }
