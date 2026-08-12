@@ -4,15 +4,22 @@ export function createRuntimeBindings(runtime){
   }
 
   const transport = runtime.model.transport || {};
+  const display = runtime.persona.display || {};
   const facts = runtime.persona.facts || {};
   const voice = runtime.persona.voice || {};
   const memoryPolicy = runtime.usecase.memoryPolicy || {};
 
+  const personaName = display.name || runtime.persona.id;
+  const shortName = display.shortName || personaName;
+
   return Object.freeze({
     identity: Object.freeze({
       personaId: runtime.persona.id,
-      personaName: runtime.persona.display?.name || runtime.persona.id,
-      shortName: runtime.persona.display?.shortName || runtime.persona.display?.name || runtime.persona.id,
+      personaName,
+      shortName,
+      fanName: display.fanName || '',
+      avatar: display.avatar || '',
+      avatarAlt: display.alt || personaName,
       usecaseId: runtime.usecase.id,
       modelId: runtime.model.id
     }),
