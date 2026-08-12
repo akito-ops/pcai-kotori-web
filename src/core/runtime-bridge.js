@@ -12,15 +12,18 @@ export function createRuntimeBridge({ bindings, modelAdapter, memoryAdapter }){
 
   const memory = Object.freeze({
     storageKey: bindings.storageKey,
+    policy: bindings.memory,
     read: () => memoryAdapter.read(),
     write: serializedState => memoryAdapter.write(serializedState),
     remove: () => memoryAdapter.remove()
   });
 
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     storageKey: bindings.storageKey,
     identity: bindings.identity,
+    personaFacts: bindings.personaFacts,
+    voice: bindings.voice,
     memory,
     chat: request => modelAdapter.chat(request)
   });
