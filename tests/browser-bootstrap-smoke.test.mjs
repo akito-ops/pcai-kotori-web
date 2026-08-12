@@ -73,9 +73,6 @@ for(const property of ['PCAIRuntime','PCAIBindings','PCAIBridge','PCAILocalRespo
 const newReply = windowStub.PCAILocalReply({ message: '誕生日は？' }, () => 'legacy');
 assert.match(newReply, /7月7日/);
 
-const originalReply = windowStub.PCAILocalResponder.reply;
-Object.defineProperty(windowStub.PCAILocalResponder, 'reply', { value: originalReply });
-
 const chat = elementFor('chat');
 assert.ok(chat.children.length >= 1, 'app should render an initial chat message');
 const renderedText = chat.children.map(node => node.textContent).join('\n');
