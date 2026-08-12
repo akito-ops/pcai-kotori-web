@@ -231,7 +231,17 @@ function renderMemory(){
   const commits=state.commits.slice(-7).reverse(); $('commits').replaceChildren(...(commits.length?commits.map(x=>{const li=document.createElement('li');const c=document.createElement('code');c.textContent=x.id;li.append(c,document.createTextNode(` — ${x.summary}`));return li;}):[(()=>{const li=document.createElement('li');li.textContent='まだcommitはありません。';return li;})()]));
 }
 function setSending(v){sending=v;$('send-btn').disabled=v;$('message').disabled=v;$('send-btn').textContent=v?'考え中…':'送信';}
-async function llmReply(message,recentConversation){const response=await fetch(`${BACKEND_URL}/api/chat`,{method:'POST',headers:{'content-type':'application/json','x-pcai-access-token':llmAccessToken},body:JSON.stringify({message,recentConversation,relevantMemories:selectMemoriesForLLM(message),mode:mode()})});let data={};try{data=await response.json();}catch{}if(!response.ok){const e=new Error(data.error||`HTTP_${response.status}`);e.code=data.error||'';throw e;}if(typeof data.reply!=='string'||!data.reply.trim())throw new Error('empty_reply');return data.reply.trim();}
+async function llmReply(message,recentConversation){
+  const bridge = window.PCAIBridge;
+  if(!bridge || typeof bridge.chat !== 'function') throw new Error('runtime_bridge_unavailable');
+  return bridge.chat({
+    accessToken: llmAccessToken,
+    message,
+    recentConversation,
+    relevantMemories: selectMemoriesForLLM(message),
+    mode: mode()
+  });
+}
 async function submitMessage(message){
   const m=escapeText(message);if(!m||sending)return;const recent=recentConversationForLLM();addMessage('user',m);rememberTurn('user',m);
   if(!llmAccessToken){const reply=kotoriReply(m);setTimeout(()=>{addMessage('kotori',reply);rememberTurn('assistant',reply);speak(reply);},120);return;}
