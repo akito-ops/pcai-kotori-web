@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'pcai.kagaribi-kotori.web.v02';
+const BACKEND_URL = 'https://pcai-kotori-backend.siryuakito.workers.dev';
 const defaultState = () => ({
   version: 2,
   head: null,
@@ -19,6 +20,8 @@ const persona = {
 
 let state = load();
 let voiceOn = true;
+let llmAccessToken = '';
+let sending = false;
 const $ = (id) => document.getElementById(id);
 const chat = $('chat');
 
@@ -46,6 +49,24 @@ function findRelevantMemory(message){
   return items.find(item=>words.some(w=>item.text.includes(w)));
 }
 
+function selectMemoriesForLLM(message){
+  const words=message.replace(/[。、！？!?,]/g,' ').split(/\s+/).filter(w=>w.length>=2);
+  const items=longItems().slice().reverse();
+  const scored=items.map((item,index)=>({
+    item,
+    score: words.reduce((n,w)=>n+(item.text.includes(w)?4:0),0) + (item.kind==='semantic'?2:0) + (item.kind==='relationship'?1:0) - index*0.001
+  }));
+  scored.sort((a,b)=>b.score-a.score);
+  return scored.slice(0,6).map(({item})=>({kind:item.kind,text:item.text}));
+}
+
+function recentConversationForLLM(){
+  return state.shortTerm.slice(-8).map(turn=>({
+    role: turn.role==='assistant'?'assistant':'user',
+    content: String(turn.content||'').slice(0,1200)
+  }));
+}
+
 function kotoriReply(message){
   const m=message.trim(); const night=mode()==='night'; const mem=findRelevantMemory(m);
   if(/^(こんこと|こんにちは|やあ|こんばんは|hello)/i.test(m)) return night ? 'こんことー。……えへへ、こんな時間に会えるの、ちょっといいね。今日は何の話する？' : 'こんことー！ えへへ、来てくれてありがとね。今日は何の話しよっか？';
@@ -53,7 +74,7 @@ function kotoriReply(message){
   if(/誕生日/.test(m)) return '7月7日だよ。七夕って、空の話が似合う日でちょっと好きなんだよね。';
   if(/身長/.test(m)) return '154cm。……小さいって言おうとした？ 先に言っておくけど、聞こえてるからねー。';
   if(/何が好き|好きなもの|好物|好きな食べ/.test(m)) return `うーん、いっぱいあるよ。${pick(persona.likes)}とか、${pick(persona.foods)}とか。好きなものの話になると、ちょっと長くなるかも。えへへ。`;
-  if(/飲み物|何飲む/.test(m)) return `今なら${pick(persona.drinks)}かな。……でも私、話し込んでまた冷ましそう。`; 
+  if(/飲み物|何飲む/.test(m)) return `今なら${pick(persona.drinks)}かな。……でも私、話し込んでまた冷ましそう。`;
   if(/覚えて|記憶|前に話した/.test(m)){
     if(mem) return `うん、覚えてるよ。${mem.text}。……こうやって前の話がちゃんと続くの、なんか嬉しいね。`;
     const n=longItems().length; return n ? `うん。今、長期記憶には ${n} 件残ってるよ。どの話のことか、もう少しだけヒントもらってもいい？` : 'まだ長期記憶は空っぽみたい。今日の話をして、あとで睡眠処理すると少しずつ残っていくよ。';
@@ -98,22 +119,94 @@ function sleepCycle(){
 
 function renderMemory(){
   $('mode-badge').textContent=modeLabel();
+  $('llm-status').textContent=llmAccessToken?'無料AI接続中':'LLM未接続';
   $('head-id').textContent=state.head||'—'; $('short-count').textContent=state.shortTerm.length; $('long-count').textContent=longItems().length; $('commit-count').textContent=state.commits.length;
   const memories=longItems().slice(-10).reverse(); $('memories').replaceChildren(...(memories.length?memories.map(x=>{const li=document.createElement('li');li.textContent=`[${x.kind}] ${x.text}`;return li;}):[(()=>{const li=document.createElement('li');li.textContent='まだ長期記憶はありません。';return li;})()]));
   const commits=state.commits.slice(-7).reverse(); $('commits').replaceChildren(...(commits.length?commits.map(x=>{const li=document.createElement('li');const c=document.createElement('code');c.textContent=x.id;li.append(c,document.createTextNode(` — ${x.summary}`));return li;}):[(()=>{const li=document.createElement('li');li.textContent='まだcommitはありません。';return li;})()]));
 }
 
-function submitMessage(message){ const m=escapeText(message); if(!m)return; addMessage('user',m); rememberTurn('user',m); const reply=kotoriReply(m); setTimeout(()=>{addMessage('kotori',reply); rememberTurn('assistant',reply); speak(reply);},120); }
+function setSending(value){
+  sending=value;
+  $('send-btn').disabled=value;
+  $('message').disabled=value;
+  $('send-btn').textContent=value?'考え中…':'送信';
+}
 
-$('chat-form').addEventListener('submit',e=>{e.preventDefault();const input=$('message');const m=input.value;input.value='';submitMessage(m);input.focus();});
+async function llmReply(message,recentConversation){
+  const response=await fetch(`${BACKEND_URL}/api/chat`,{
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-pcai-access-token':llmAccessToken
+    },
+    body:JSON.stringify({
+      message,
+      recentConversation,
+      relevantMemories:selectMemoriesForLLM(message),
+      mode:mode()
+    })
+  });
+  let data={};
+  try{ data=await response.json(); }catch{}
+  if(!response.ok){
+    const error=new Error(data.error||`HTTP_${response.status}`);
+    error.code=data.error||'';
+    throw error;
+  }
+  if(typeof data.reply!=='string'||!data.reply.trim())throw new Error('empty_reply');
+  return data.reply.trim();
+}
+
+async function submitMessage(message){
+  const m=escapeText(message); if(!m||sending)return;
+  const recent=recentConversationForLLM();
+  addMessage('user',m); rememberTurn('user',m);
+
+  if(!llmAccessToken){
+    const reply=kotoriReply(m);
+    setTimeout(()=>{addMessage('kotori',reply); rememberTurn('assistant',reply); speak(reply);},120);
+    return;
+  }
+
+  setSending(true);
+  try{
+    const reply=await llmReply(m,recent);
+    addMessage('kotori',reply); rememberTurn('assistant',reply); speak(reply);
+  }catch(error){
+    if(error.code==='unauthorized'){
+      llmAccessToken=''; renderMemory();
+      addMessage('system','本人用アクセス鍵が一致しません。AI接続を解除しました。鍵を確認してもう一度接続してください。');
+    }else if(error.code==='free_ai_unavailable'){
+      addMessage('system','無料AIが現在利用できないか、今日の無料枠に達しました。有料APIには切り替えず停止します。');
+    }else{
+      addMessage('system','無料AIとの接続に失敗しました。有料経路には切り替えません。');
+    }
+  }finally{
+    setSending(false); $('message').focus();
+  }
+}
+
+$('chat-form').addEventListener('submit',e=>{e.preventDefault();const input=$('message');const m=input.value;input.value='';submitMessage(m);});
 $('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('chat-form').requestSubmit();}});
 document.querySelectorAll('[data-prompt]').forEach(b=>b.addEventListener('click',()=>submitMessage(b.dataset.prompt)));
 $('sleep-btn').addEventListener('click',sleepCycle);
 $('voice-btn').addEventListener('click',()=>{voiceOn=!voiceOn;$('voice-btn').textContent=voiceOn?'🔊 読み上げ ON':'🔇 読み上げ OFF';if(!voiceOn&&'speechSynthesis'in window)speechSynthesis.cancel();});
 $('about-btn').addEventListener('click',()=>$('about-dialog').showModal());
+$('llm-btn').addEventListener('click',()=>{ $('llm-token-input').value=''; $('llm-dialog').showModal(); setTimeout(()=>$('llm-token-input').focus(),50); });
+$('llm-connect-btn').addEventListener('click',()=>{
+  const token=$('llm-token-input').value.trim();
+  if(token.length<20){ alert('本人用アクセス鍵が短すぎます。Cloudflareへ登録した値を入力してください。'); return; }
+  llmAccessToken=token;
+  $('llm-token-input').value='';
+  $('llm-dialog').close();
+  renderMemory();
+  addMessage('system','無料AIをこのページ内だけ接続しました。アクセス鍵はブラウザ保存していません。');
+});
+$('llm-clear-btn').addEventListener('click',()=>{ llmAccessToken=''; $('llm-token-input').value=''; $('llm-dialog').close(); renderMemory(); addMessage('system','AI接続を解除しました。'); });
 $('export-btn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`kotori-pcai-memory-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);});
 $('import-file').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!data.longTerm||!Array.isArray(data.shortTerm))throw new Error();state={...defaultState(),...data};save();addMessage('system','記憶を読み込みました。');}catch{alert('PCAI記憶ファイルとして読み込めませんでした。')}e.target.value='';});
 $('reset-btn').addEventListener('click',()=>{if(!confirm('篝火ことりとのPCAI記憶をこのブラウザから初期化しますか？'))return;state=defaultState();save();chat.replaceChildren();addMessage('kotori','こんことー！ ……えへへ、ここからまた始めよっか。');});
+window.addEventListener('pagehide',()=>{ llmAccessToken=''; });
 
 renderMemory();
 const returning=longItems().length>0||state.commits.length>0;
