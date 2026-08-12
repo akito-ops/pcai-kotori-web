@@ -238,6 +238,22 @@ function kotoriReply(message){
   return pick(night?['……うん、ちゃんと聞いてるよ。もう少し、その続き聞かせて。','そっか。こういう時間に話すと、少し言葉の形が変わるね。……続けよっか。']:['うんうん、ちゃんと聞いてるよ。そこからどうなったの？','それ、ちょっと気になる。もう少し聞かせてほしいな。','いいね。そういう断片から一緒に世界を広げるの、私すごく好きかも。']);
 }
 
+function localReply(message){
+  const m=String(message||'').trim();
+  const intent=temporalIntent(m);
+  const context={
+    message:m,
+    night:mode()==='night',
+    intent,
+    intentHits:intent?episodicForTemporal(intent):[],
+    relevantMemory:findRelevantMemory(m),
+    usableMemoryCount:usableItems().length
+  };
+  return typeof window.PCAILocalReply==='function'
+    ? window.PCAILocalReply(context,kotoriReply)
+    : kotoriReply(m);
+}
+
 function memoryImportance(text){
   let score=0.35;
   if(/覚えて|大事|重要|決めた|予定|方針|ルール/.test(text)) score+=0.45;
@@ -302,7 +318,7 @@ async function llmReply(message,recentConversation){
 }
 async function submitMessage(message){
   const m=escapeText(message);if(!m||sending)return;const recent=recentConversationForLLM();addMessage('user',m);rememberTurn('user',m);
-  if(!llmAccessToken){const reply=kotoriReply(m);setTimeout(()=>{addMessage('kotori',reply);rememberTurn('assistant',reply);speak(reply);},120);return;}
+  if(!llmAccessToken){const reply=localReply(m);setTimeout(()=>{addMessage('kotori',reply);rememberTurn('assistant',reply);speak(reply);},120);return;}
   setSending(true);try{const reply=await llmReply(m,recent);addMessage('kotori',reply);rememberTurn('assistant',reply);speak(reply);}catch(error){if(error.code==='unauthorized'){llmAccessToken='';renderMemory();addMessage('system','本人用アクセス鍵が一致しません。AI接続を解除しました。');}else if(error.code==='free_ai_unavailable'){addMessage('system','無料AIが現在利用できないか、今日の無料枠に達しました。有料APIには切り替えず停止します。');}else{addMessage('system','無料AIとの接続に失敗しました。有料経路には切り替えません。');}}finally{setSending(false);$('message').focus();}
 }
 
