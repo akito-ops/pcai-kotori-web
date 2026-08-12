@@ -17,6 +17,7 @@ export function createRuntimeProfile({ persona, usecase, model }){
   assertId(model.id, 'model');
 
   const profileId = `${persona.id}:${usecase.id}:${model.id}`;
+  const memoryNamespace = persona.storage?.memoryNamespace || `pcai.character.${persona.id}.memory.v1`;
 
   return Object.freeze({
     schemaVersion: 1,
@@ -25,9 +26,9 @@ export function createRuntimeProfile({ persona, usecase, model }){
     usecase,
     model,
     storage: Object.freeze({
-      // Character memory is intentionally independent from the AI model.
-      // Changing models does not erase the relationship/history of the character.
-      memoryNamespace: `pcai.character.${persona.id}.memory.v1`,
+      // Memory belongs to the character, not to the underlying AI model.
+      // A persona may explicitly keep a legacy namespace during migration.
+      memoryNamespace,
       // Runtime preferences may vary by use-case without contaminating character memory.
       settingsNamespace: `pcai.character.${persona.id}.usecase.${usecase.id}.settings.v1`
     })
