@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createRuntimeProfile } from '../src/core/runtime-profile.js';
+import { createRuntimeBindings } from '../src/core/runtime-bindings.js';
 import { kotoriPersona } from '../src/config/personas/kotori.js';
 import { companionUsecase } from '../src/config/usecases/companion.js';
 import { cloudflareWorkersAI } from '../src/config/models/cloudflare-workers-ai.js';
@@ -22,6 +23,16 @@ assert.equal(base.model.policy.paidFallback, false);
 assert.equal(base.model.policy.tokenPersistence, 'memory-only');
 assert.equal(base.persona.boundaries.mayRewritePersonaCore, false);
 assert.equal(base.persona.boundaries.mayInventMemories, false);
+
+const bindings = createRuntimeBindings(base);
+assert.equal(bindings.storageKey, 'pcai.kagaribi-kotori.web.v02');
+assert.equal(bindings.backend.baseUrl, 'https://pcai-kotori-backend.siryuuakito.workers.dev');
+assert.equal(bindings.backend.chatPath, '/api/chat');
+assert.equal(bindings.backend.authHeader, 'x-pcai-access-token');
+assert.equal(bindings.identity.personaName, '篝火ことり');
+assert.equal(bindings.memory.shortTermLimit, 80);
+assert.equal(bindings.memory.longTermLimitPerKind, 180);
+assert.equal(bindings.voice.language, 'ja-JP');
 
 const dummyModel = Object.freeze({ id: 'dummy-model', schemaVersion: 1 });
 const swapped = createRuntimeProfile({
