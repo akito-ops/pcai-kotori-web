@@ -75,8 +75,25 @@ assert.match(newReply, /7月7日/);
 
 const chat = elementFor('chat');
 assert.ok(chat.children.length >= 1, 'app should render an initial chat message');
-const renderedText = chat.children.map(node => node.textContent).join('\n');
+let renderedText = chat.children.map(node => node.textContent).join('\n');
 assert.match(renderedText, /篝火ことり/);
 assert.doesNotMatch(renderedText, /起動を停止しました/);
+
+const input = elementFor('message');
+input.value = '誕生日は？';
+const submit = elementFor('chat-form').listeners.get('submit');
+assert.equal(typeof submit, 'function', 'chat form submit handler must be registered');
+submit({ preventDefault(){} });
+await new Promise(resolve => setTimeout(resolve, 180));
+
+renderedText = chat.children.map(node => node.textContent).join('\n');
+assert.match(renderedText, /誕生日は？/);
+assert.match(renderedText, /7月7日/);
+
+const stored = JSON.parse(storageData.get('pcai.kagaribi-kotori.web.v02'));
+assert.equal(stored.shortTerm.at(-2)?.role, 'user');
+assert.equal(stored.shortTerm.at(-2)?.content, '誕生日は？');
+assert.equal(stored.shortTerm.at(-1)?.role, 'assistant');
+assert.match(stored.shortTerm.at(-1)?.content || '', /7月7日/);
 
 console.log('browser bootstrap smoke: OK');
