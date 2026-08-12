@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'pcai.kagaribi-kotori.web.v02';
-const BACKEND_URL = 'https://pcai-kotori-backend.siryuakito.workers.dev';
+const BACKEND_URL = 'https://pcai-kotori-backend.siryuuakito.workers.dev';
 const defaultState = () => ({
   version: 2,
   head: null,
