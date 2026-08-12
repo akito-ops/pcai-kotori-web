@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "check:syntax": "node --check app.js && find src -name '*.js' -print0 | xargs -0 -n1 node --check",
-    "test:contracts": "node tests/runtime-profile.test.mjs && node tests/legacy-contract.test.mjs && node tests/model-http.test.mjs && node tests/memory-local-storage.test.mjs && node tests/runtime-bridge.test.mjs && node tests/runtime-factory.test.mjs && node tests/local-responder.test.mjs && node tests/bootstrap-responder.test.mjs && node tests/app-modularization.test.mjs",
+    "test:contracts": "node tests/runtime-profile.test.mjs && node tests/legacy-contract.test.mjs && node tests/model-http.test.mjs && node tests/memory-local-storage.test.mjs && node tests/runtime-bridge.test.mjs && node tests/runtime-factory.test.mjs && node tests/local-responder.test.mjs && node tests/local-reply-router.test.mjs && node tests/bootstrap-responder.test.mjs && node tests/app-modularization.test.mjs",
     "test": "npm run check:syntax && npm run test:contracts"
   }
 }
