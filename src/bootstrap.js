@@ -4,6 +4,7 @@ import { assertLegacyCompatibility } from './core/legacy-contract.js';
 import { createModelHttpAdapter } from './adapters/model-http.js';
 import { createLocalStorageMemoryAdapter } from './adapters/memory-local-storage.js';
 import { createRuntimeBridge } from './core/runtime-bridge.js';
+import { createLocalResponderForPersona } from './responders/responder-factory.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -50,6 +51,7 @@ try{
     storage: window.localStorage
   });
   const bridge = createRuntimeBridge({ bindings, modelAdapter, memoryAdapter });
+  const localResponder = createLocalResponderForPersona(bindings);
 
   // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
   Object.defineProperties(window, {
@@ -79,6 +81,12 @@ try{
     },
     PCAIBridge: {
       value: bridge,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAILocalResponder: {
+      value: localResponder,
       writable: false,
       configurable: false,
       enumerable: false
