@@ -8,6 +8,10 @@ export const kotoriPersona = Object.freeze({
     avatar: './kotori_master.png',
     alt: '篝火ことり 公式ビジュアル'
   }),
+  storage: Object.freeze({
+    // Keep the current production key so the modular refactor never hides or resets existing memories.
+    memoryNamespace: 'pcai.kagaribi-kotori.web.v02'
+  }),
   facts: Object.freeze({
     birthday: '7月7日',
     height: '154cm',
