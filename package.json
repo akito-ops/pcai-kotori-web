@@ -2,6 +2,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/runtime-profile.test.mjs"
+    "test": "node tests/runtime-profile.test.mjs && node tests/legacy-contract.test.mjs"
   }
 }
