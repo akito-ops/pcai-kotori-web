@@ -62,6 +62,11 @@ function dateFromMemory(item){
   const m=String(item?.text||'').match(/(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
   return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}` : '';
 }
+function dateFromTurnAt(at){
+  if(!at) return jstDateKey();
+  const d=new Date(at);
+  return Number.isNaN(d.getTime()) ? jstDateKey() : jstDateKey(d);
+}
 
 function addMessage(role,text){ const el=document.createElement('div'); el.className=`message ${role}`; el.textContent=text; chat.appendChild(el); chat.scrollTop=chat.scrollHeight; }
 function speak(text){ if(!voiceOn || !('speechSynthesis' in window))return; speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text.replace(/……/g,'、')); u.lang='ja-JP'; u.rate=mode()==='night'?.92:1.03; u.pitch=1.03; speechSynthesis.speak(u); }
@@ -82,7 +87,6 @@ function meaningfulText(text){
 function isBrokenMemory(item){
   const t=String(item?.text||'').trim();
   if(!t) return true;
-  if(item?.kind==='semantic' && (t.length<6 || /^[ぁ-んァ-ン一-龥]{0,3}[？?]?$/.test(t))) return true;
   if(/ユーザーは(?:こんこと|こんにちは|こんばんは|おはよう)/.test(t)) return true;
   return false;
 }
@@ -113,6 +117,8 @@ function findRelevantMemory(message){
 
 function temporalIntent(message){
   const m=String(message||'');
+  const recallCue=/(覚えて(?:る|いる)?|何話した|何を話した|何だっけ|思い出|振り返|前回|この前|前に話した)/.test(m);
+  if(!recallCue) return null;
   if(/一昨日|おととい/.test(m)) return {type:'day',label:'一昨日',start:dateOffsetKey(-2),end:dateOffsetKey(-2)};
   if(/昨日/.test(m)) return {type:'day',label:'昨日',start:dateOffsetKey(-1),end:dateOffsetKey(-1)};
   if(/今日/.test(m)) return {type:'day',label:'今日',start:dateOffsetKey(0),end:dateOffsetKey(0)};
@@ -186,11 +192,14 @@ function memoryImportance(text){
   return Math.min(1,score);
 }
 function inferMemories(sessionId){
-  const users=state.shortTerm.filter(x=>x.role==='user').map((x,index)=>({text:String(x.content||'').trim(),index})).filter(x=>meaningfulText(x.text));
-  const date=jstDateKey(), now=new Date().toISOString();
+  const users=state.shortTerm.filter(x=>x.role==='user').map((x,index)=>({text:String(x.content||'').trim(),index,at:x.at})).filter(x=>meaningfulText(x.text));
+  const now=new Date().toISOString();
   const unique=[]; const seen=new Set();
   for(const item of users){ if(!seen.has(item.text)){seen.add(item.text);unique.push({...item,importance:memoryImportance(item.text)});} }
-  const episodic=unique.slice().sort((a,b)=>b.importance-a.importance||b.index-a.index).slice(0,5).map(x=>({date,sessionId,summary:x.text.slice(0,110),text:`${date}、ユーザーと「${x.text.slice(0,110)}」について話した`,importance:x.importance,createdAt:now}));
+  const episodic=unique.slice().sort((a,b)=>b.importance-a.importance||b.index-a.index).slice(0,5).map(x=>{
+    const date=dateFromTurnAt(x.at);
+    return {date,sessionId,summary:x.text.slice(0,110),text:`${date}、ユーザーと「${x.text.slice(0,110)}」について話した`,importance:x.importance,createdAt:now};
+  });
   const semantic=[], procedural=[];
   for(const {text} of unique){
     let r=text.match(/^(?:私は|自分は)(.{1,35}?)(?:が好き|が好きだ|が好きです|が好きなんだ)[。！!？?]?$/); if(r&&r[1].trim().length>=2) semantic.push({owner:'user',text:`ユーザーは${r[1].trim()}が好き`,confidence:0.95,importance:0.9,createdAt:now});
