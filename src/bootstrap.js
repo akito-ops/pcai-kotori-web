@@ -2,6 +2,7 @@ import { runtime } from './config/runtime.js';
 import { createRuntimeBindings } from './core/runtime-bindings.js';
 import { assertLegacyCompatibility } from './core/legacy-contract.js';
 import { createModelHttpAdapter } from './adapters/model-http.js';
+import { createLocalStorageMemoryAdapter } from './adapters/memory-local-storage.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -43,6 +44,10 @@ try{
   const bindings = createRuntimeBindings(runtime);
   assertLegacyCompatibility(bindings);
   const modelAdapter = createModelHttpAdapter(bindings);
+  const memoryAdapter = createLocalStorageMemoryAdapter({
+    storageKey: bindings.storageKey,
+    storage: window.localStorage
+  });
 
   // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
   Object.defineProperties(window, {
@@ -60,6 +65,12 @@ try{
     },
     PCAIModelAdapter: {
       value: modelAdapter,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAIMemoryAdapter: {
+      value: memoryAdapter,
       writable: false,
       configurable: false,
       enumerable: false
