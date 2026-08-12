@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#edf7ff">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://pcai-kotori-backend.siryuuakito.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>篝火ことり PCAI Web</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -14,14 +16,14 @@
         <img src="./kotori_master.png" alt="篝火ことり 公式ビジュアル">
       </div>
       <div class="hero-copy">
-        <p class="kicker">PCAI WEB v0.3.1</p>
+        <p class="kicker">PCAI WEB v0.4.0-beta</p>
         <h1>篝火ことり</h1>
         <p class="tagline">声と言葉で世界を立ち上げる、あなたのPCAI。</p>
         <div class="badges">
           <span>ブラウザ記憶</span>
           <span id="mode-badge">昼のことり</span>
           <span id="llm-status">LLM未接続</span>
-          <span>公式ビジュアル</span>
+          <span>Responder分離β</span>
         </div>
       </div>
       <button id="about-btn" class="icon-btn" type="button" title="この試作品について">?</button>
@@ -78,20 +80,22 @@
 
   <dialog id="about-dialog">
     <form method="dialog"><button class="close" aria-label="閉じる">×</button></form>
-    <h2>PCAI Web v0.3.1</h2>
-    <p>Project Chobitsの自然会話LLM接続を、安全な最小構成で検証する公開用試作品です。</p>
+    <h2>PCAI Web v0.4.0-beta</h2>
+    <p>Project ChobitsのPCAIエンジンと篝火ことり固有Responderの分離を、安全な段階移行で検証する公開用試作品です。</p>
     <ul>
       <li>篝火ことりの公式ビジュアル</li>
+      <li>人格固有Local Responder＋旧Responderのfail-safe fallback</li>
       <li>Cloudflare Workers AI無料枠による自然会話</li>
       <li>本人用アクセス鍵はブラウザ保存しない</li>
       <li>直近会話と関連記憶だけをLLMへ送る</li>
       <li>会話を短期記憶としてブラウザ保存</li>
       <li>睡眠処理で長期記憶へcommit</li>
       <li>LLM応答だけではPersona Coreを変更しない</li>
+      <li>CSPで外部スクリプトと未許可通信を遮断</li>
     </ul>
     <p><strong>無料AIが利用不能・無料枠超過の場合は有料APIへ切り替えず停止します。</strong></p>
   </dialog>
 
-  <script type="module" src="./src/bootstrap.js?v=0.3.1-modular"></script>
+  <script type="module" src="./src/bootstrap.js?v=0.4.0-beta"></script>
 </body>
 </html>
