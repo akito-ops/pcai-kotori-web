@@ -1,5 +1,6 @@
 import { runtime } from './config/runtime.js';
 import { createRuntimeBindings } from './core/runtime-bindings.js';
+import { assertLegacyCompatibility } from './core/legacy-contract.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -39,6 +40,7 @@ function assertSafeRuntime(profile){
 try{
   assertSafeRuntime(runtime);
   const bindings = createRuntimeBindings(runtime);
+  assertLegacyCompatibility(bindings);
 
   // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
   Object.defineProperties(window, {
@@ -63,7 +65,7 @@ try{
   if(target){
     const message = document.createElement('div');
     message.className = 'message system';
-    message.textContent = '安全設定の確認に失敗したため、PCAIの起動を停止しました。';
+    message.textContent = '安全設定または互換性の確認に失敗したため、PCAIの起動を停止しました。';
     target.replaceChildren(message);
   }
 }
