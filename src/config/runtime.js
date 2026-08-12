@@ -1,10 +1,7 @@
-import { kotoriPersona } from './personas/kotori.js';
-import { companionUsecase } from './usecases/companion.js';
-import { cloudflareWorkersAI } from './models/cloudflare-workers-ai.js';
-import { createRuntimeProfile } from '../core/runtime-profile.js';
+import { pcaiCatalog, defaultSelection } from './catalog.js';
+import { createRuntimeFromSelection } from '../core/runtime-factory.js';
 
-export const runtime = createRuntimeProfile({
-  persona: kotoriPersona,
-  usecase: companionUsecase,
-  model: cloudflareWorkersAI
+export const runtime = createRuntimeFromSelection({
+  catalog: pcaiCatalog,
+  selection: defaultSelection
 });
