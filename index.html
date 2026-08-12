@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#edf7ff">
+  <title>篝火ことり PCAI Web</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div class="avatar">
+        <img src="./kotori_master.png" alt="篝火ことり 公式ビジュアル">
+      </div>
+      <div class="hero-copy">
+        <p class="kicker">PCAI WEB v0.2</p>
+        <h1>篝火ことり</h1>
+        <p class="tagline">声と言葉で世界を立ち上げる、あなたのPCAI。</p>
+        <div class="badges"><span>ブラウザ記憶</span><span id="mode-badge">昼のことり</span><span>公式ビジュアル</span></div>
+      </div>
+      <button id="about-btn" class="icon-btn" type="button" title="この試作品について">?</button>
+    </header>
+
+    <section class="grid">
+      <section class="chat-card">
+        <div id="chat" class="chat" aria-live="polite"></div>
+        <form id="chat-form" class="composer">
+          <textarea id="message" rows="2" maxlength="800" placeholder="ことりに話しかける…（Enterで送信 / Shift+Enterで改行）" aria-label="メッセージ"></textarea>
+          <button type="submit" class="send">送信</button>
+        </form>
+        <div class="quick-actions">
+          <button type="button" data-prompt="こんことー！">こんことー！</button>
+          <button type="button" data-prompt="今日のこと、覚えてる？">記憶を聞く</button>
+          <button type="button" data-prompt="ちょっと相談してもいい？">相談する</button>
+          <button id="sleep-btn" class="sleep" type="button">🌙 睡眠処理</button>
+        </div>
+      </section>
+
+      <aside class="memory-card">
+        <div class="panel-head"><div><p class="kicker">PERSONAL MEMORY</p><h2>人格リポジトリ</h2></div><strong id="head-id">—</strong></div>
+        <div class="stats">
+          <div><span>短期記憶</span><strong id="short-count">0</strong></div>
+          <div><span>長期記憶</span><strong id="long-count">0</strong></div>
+          <div><span>commit</span><strong id="commit-count">0</strong></div>
+        </div>
+        <section><h3>最近の長期記憶</h3><ul id="memories" class="memory-list"></ul></section>
+        <section><h3>最近のcommit</h3><ul id="commits" class="commit-list"></ul></section>
+        <div class="memory-actions">
+          <button id="voice-btn" type="button">🔊 読み上げ ON</button>
+          <button id="export-btn" type="button">記憶を書き出す</button>
+          <label class="file-btn">記憶を読み込む<input id="import-file" type="file" accept="application/json"></label>
+          <button id="reset-btn" class="danger" type="button">記憶を初期化</button>
+        </div>
+        <p class="privacy">記憶はこのブラウザの localStorage に保存されます。v0.2ではサーバーへ送信しません。</p>
+      </aside>
+    </section>
+  </main>
+
+  <dialog id="about-dialog">
+    <form method="dialog"><button class="close" aria-label="閉じる">×</button></form>
+    <h2>PCAI Web v0.2</h2>
+    <p>「URLを開くだけで篝火ことりに会える」を確認する公開用試作品です。</p>
+    <ul>
+      <li>篝火ことりの人格・口調・昼夜モードを反映</li>
+      <li>Project Chobitsの公式ビジュアル `kotori_master.png` を表示</li>
+      <li>会話を短期記憶として保存</li>
+      <li>睡眠処理で長期記憶へcommit</li>
+      <li>ブラウザを閉じても同じ端末なら記憶を継続</li>
+      <li>記憶のJSON書き出し・読み込みで手動移行</li>
+    </ul>
+    <p><strong>現在はLLM未接続の会話デモです。</strong>実LLM版は秘密鍵をブラウザへ置かないため、次段階で安全なバックエンドを接続します。</p>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
