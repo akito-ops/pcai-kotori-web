@@ -1,4 +1,5 @@
 import { runtime } from './config/runtime.js';
+import { createRuntimeBindings } from './core/runtime-bindings.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -37,14 +38,24 @@ function assertSafeRuntime(profile){
 
 try{
   assertSafeRuntime(runtime);
-  // Expose read-only configuration for diagnostics and the next migration step.
-  // Secrets and user memories are never placed here.
-  Object.defineProperty(window, 'PCAIRuntime', {
-    value: runtime,
-    writable: false,
-    configurable: false,
-    enumerable: false
+  const bindings = createRuntimeBindings(runtime);
+
+  // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
+  Object.defineProperties(window, {
+    PCAIRuntime: {
+      value: runtime,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAIBindings: {
+      value: bindings,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    }
   });
+
   await import('../app.js');
 }catch(error){
   console.error(error);
