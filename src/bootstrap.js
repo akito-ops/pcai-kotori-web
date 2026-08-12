@@ -5,6 +5,7 @@ import { createModelHttpAdapter } from './adapters/model-http.js';
 import { createLocalStorageMemoryAdapter } from './adapters/memory-local-storage.js';
 import { createRuntimeBridge } from './core/runtime-bridge.js';
 import { createLocalResponderForPersona } from './responders/responder-factory.js';
+import { createLocalReplyRouter } from './core/local-reply-router.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -52,6 +53,10 @@ try{
   });
   const bridge = createRuntimeBridge({ bindings, modelAdapter, memoryAdapter });
   const localResponder = createLocalResponderForPersona(bindings);
+  const localReply = (context, legacyReply) => createLocalReplyRouter({
+    responder: localResponder,
+    legacyReply
+  }).reply(context);
 
   // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
   Object.defineProperties(window, {
@@ -87,6 +92,12 @@ try{
     },
     PCAILocalResponder: {
       value: localResponder,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAILocalReply: {
+      value: localReply,
       writable: false,
       configurable: false,
       enumerable: false
