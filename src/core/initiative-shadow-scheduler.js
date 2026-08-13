@@ -14,13 +14,17 @@ export function createInitiativeShadowScheduler({
   engine,
   intervalMs = MIN_INTERVAL_MS,
   setIntervalFn = globalThis.setInterval,
-  clock = () => new Date().toISOString()
+  clock = () => new Date().toISOString(),
+  onEvaluation = null
 }){
   if(!engine || typeof engine.evaluate !== 'function'){
     throw new TypeError('Initiative Shadow engine with evaluate() is required');
   }
   if(typeof setIntervalFn !== 'function') throw new TypeError('setInterval function is required');
   if(typeof clock !== 'function') throw new TypeError('scheduler clock must be a function');
+  if(onEvaluation !== null && typeof onEvaluation !== 'function'){
+    throw new TypeError('onEvaluation must be a function when provided');
+  }
   if(!Number.isFinite(intervalMs) || intervalMs < MIN_INTERVAL_MS){
     throw new RangeError('Initiative Shadow interval must be at least 60000ms');
   }
@@ -29,6 +33,15 @@ export function createInitiativeShadowScheduler({
   let intervalHandle = null;
   let tickCount = 0;
   const history = [];
+
+  function notify(evaluation){
+    if(!onEvaluation) return;
+    try{
+      onEvaluation(evaluation);
+    }catch{
+      // Shadow observers must never affect scheduler operation or runtime behavior.
+    }
+  }
 
   function record(evaluation){
     const entry = freezeRecord({
@@ -39,6 +52,7 @@ export function createInitiativeShadowScheduler({
     });
     history.push(entry);
     if(history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
+    notify(evaluation);
     return entry;
   }
 
@@ -49,7 +63,7 @@ export function createInitiativeShadowScheduler({
       return record(evaluation);
     }catch{
       tickCount += 1;
-      return record({ action: 'suppress', reason: 'evaluation_failed' });
+      return record({ action: 'suppress', reason: 'evaluation_failed', wouldEmitMessage: false });
     }
   }
 
