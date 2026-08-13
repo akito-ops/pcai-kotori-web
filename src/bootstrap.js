@@ -157,7 +157,8 @@ try{
   });
   const initiativeShadowDiagnostics = Object.freeze({
     mode: 'shadow',
-    evaluationCadence: '60s',
+    evaluationCadence: 'boot-only',
+    periodicCadence: '60s',
     intervalMs: 60_000,
     historyLimit: 12,
     historyPersistence: 'memory-only',
@@ -170,68 +171,17 @@ try{
     })
   });
 
-  // Read-only diagnostics/compatibility bridge. Secrets and canonical user memories are never exposed here.
   Object.defineProperties(window, {
-    PCAIRuntime: {
-      value: runtime,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAIBindings: {
-      value: bindings,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAIModelAdapter: {
-      value: modelAdapter,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAIMemoryAdapter: {
-      value: memoryAdapter,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAIBridge: {
-      value: bridge,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAILocalResponder: {
-      value: localResponder,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAILocalReply: {
-      value: localReply,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAICurrentSelfShadow: {
-      value: currentSelfShadowDiagnostics,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAICurrentSelfContext: {
-      value: currentSelfContextDiagnostics,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    },
-    PCAIInitiativeShadow: {
-      value: initiativeShadowDiagnostics,
-      writable: false,
-      configurable: false,
-      enumerable: false
-    }
+    PCAIRuntime: { value: runtime, writable: false, configurable: false, enumerable: false },
+    PCAIBindings: { value: bindings, writable: false, configurable: false, enumerable: false },
+    PCAIModelAdapter: { value: modelAdapter, writable: false, configurable: false, enumerable: false },
+    PCAIMemoryAdapter: { value: memoryAdapter, writable: false, configurable: false, enumerable: false },
+    PCAIBridge: { value: bridge, writable: false, configurable: false, enumerable: false },
+    PCAILocalResponder: { value: localResponder, writable: false, configurable: false, enumerable: false },
+    PCAILocalReply: { value: localReply, writable: false, configurable: false, enumerable: false },
+    PCAICurrentSelfShadow: { value: currentSelfShadowDiagnostics, writable: false, configurable: false, enumerable: false },
+    PCAICurrentSelfContext: { value: currentSelfContextDiagnostics, writable: false, configurable: false, enumerable: false },
+    PCAIInitiativeShadow: { value: initiativeShadowDiagnostics, writable: false, configurable: false, enumerable: false }
   });
 
   await import('../app.js');
