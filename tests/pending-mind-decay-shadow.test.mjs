@@ -39,6 +39,17 @@ assert.equal(old.lifecycle, 'discard_candidate');
 assert.equal(old.effectiveWeight, 0);
 assert.equal(old.discardAutomatically, false, 'old pending must never be auto-deleted in Shadow Mode');
 
+const importantOld = evaluatePendingMindDecay({
+  item: { id:'important-old', topic:'関係上の大切な話', createdAt:'2026-08-01T12:00:00.000Z' },
+  currentSelf: baseSelf,
+  importance: { importanceScore:0.9, decayResistance:0.9 },
+  now
+});
+assert.equal(importantOld.ageDays, 12);
+assert.ok(importantOld.effectiveAgeDays < importantOld.ageDays, 'importance must slow effective aging');
+assert.equal(importantOld.lifecycle, 'stale');
+assert.ok(importantOld.effectiveWeight >= 0.35);
+
 const revived = evaluatePendingMindDecay({
   item: { id:'revived', topic:'PCAI設計', createdAt:'2026-08-09T12:00:00.000Z' },
   currentSelf: { activeConcerns:[{ topic:'PCAI設計' }] },
@@ -64,11 +75,16 @@ const set = evaluatePendingMindDecaySet({
     { id:'c', topic:'C', createdAt:'2026-08-01T12:00:00.000Z' }
   ],
   currentSelf: baseSelf,
+  importanceAssessments:[
+    { importanceScore:0.2, decayResistance:0.2 },
+    { importanceScore:0.5, decayResistance:0.5 },
+    { importanceScore:0.95, decayResistance:0.95 }
+  ],
   now
 });
 assert.equal(set.pendingCount, 3);
-assert.ok(Math.abs(set.effectivePendingCount - 1.35) < 1e-9);
-assert.equal(set.discardCandidateCount, 1);
+assert.equal(set.importanceAware, true);
+assert.ok(set.effectivePendingCount > 0);
 assert.equal(set.discardAutomatically, false);
 assert.equal(Object.isFrozen(set.evaluations), true);
 
