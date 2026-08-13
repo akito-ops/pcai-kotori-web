@@ -1,4 +1,4 @@
-import { createInitialCurrentSelf, reconstructCurrentSelf } from './current-self.js';
+import { assertCurrentSelf, createInitialCurrentSelf, reconstructCurrentSelf } from './current-self.js';
 
 const MAX_TOPICS = 5;
 
@@ -33,8 +33,18 @@ function recentTopics(turns){
   return topics;
 }
 
+function validateSeed(seed, personaId){
+  if(!seed) return null;
+  assertCurrentSelf(seed);
+  if(seed.personaId !== personaId){
+    throw new Error('Current Self shadow seed cannot cross persona boundaries');
+  }
+  return seed;
+}
+
 export function createCurrentSelfShadowEngine({
   personaId,
+  initialSelf = null,
   clock = () => new Date().toISOString()
 }){
   if(typeof clock !== 'function') throw new TypeError('shadow clock must be a function');
@@ -42,14 +52,15 @@ export function createCurrentSelfShadowEngine({
   const createBaseline = () => createInitialCurrentSelf({
     personaId,
     reconstructedAt: clock(),
-    continuitySummary: 'Shadow Mode baseline. This state is not persisted and does not affect runtime behavior.',
+    continuitySummary: 'Shadow Mode baseline. This state does not affect runtime behavior.',
     selfNarrative: {
       summary: 'Current Self reconstruction is being observed in Shadow Mode.',
       recentChange: ''
     }
   });
 
-  let current = createBaseline();
+  const seed = validateSeed(initialSelf, personaId);
+  let current = seed || createBaseline();
   let lastReport = null;
 
   function previewSleep({
@@ -119,12 +130,14 @@ export function createCurrentSelfShadowEngine({
     mode: 'shadow',
     persisted: false,
     affectsRuntime: false,
+    seededFromSnapshot: Boolean(seed),
     previewSleep,
     reset,
     inspect: () => deepFreeze({
       mode: 'shadow',
       persisted: false,
       affectsRuntime: false,
+      seededFromSnapshot: Boolean(seed),
       current,
       lastReport
     })
