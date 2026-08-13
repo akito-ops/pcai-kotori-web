@@ -14,6 +14,9 @@ import { createCurrentSelfResponderContext } from './core/current-self-responder
 import { createCurrentSelfInitiativeContext } from './core/current-self-initiative-context.js';
 import { createInitiativeShadowEngine } from './core/initiative-shadow.js';
 import { createInitiativeShadowScheduler } from './core/initiative-shadow-scheduler.js';
+import { createPendingMindShadowEngine } from './core/pending-mind-shadow-engine.js';
+import { detectRelationalPermission } from './core/relational-permission-shadow.js';
+import { reconsiderPendingMindShadow } from './core/pending-mind-reconsideration-shadow.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -103,17 +106,7 @@ try{
     bootedAt: new Date().toISOString(),
     environment: { hour: currentJstHour() }
   });
-  const memoryAdapter = createShadowObservingMemoryAdapter({
-    memoryAdapter: canonicalMemoryAdapter,
-    shadowEngine: currentSelfShadow,
-    shadowStore: currentSelfShadowStore
-  });
-  const bridge = createRuntimeBridge({ bindings, modelAdapter, memoryAdapter });
-  const localResponder = createLocalResponderForPersona(bindings);
-  const readCurrentSelfContext = () => createCurrentSelfResponderContext({
-    bootReport: bootCurrentSelfShadow,
-    shadowInspection: currentSelfShadow.inspect()
-  });
+  const pendingMindShadow = createPendingMindShadowEngine();
   const readInitiativeCurrentSelf = () => createCurrentSelfInitiativeContext(
     currentSelfShadow.inspect().current
   );
@@ -127,10 +120,40 @@ try{
       hour: currentJstHour()
     })
   });
+
+  function observeUserPermission(turn){
+    const permission = detectRelationalPermission(turn?.content);
+    if(permission.kind === 'none') return;
+    const result = reconsiderPendingMindShadow({
+      pendingMind: pendingMindShadow.read(),
+      permission,
+      currentSelf: currentSelfShadow.inspect().current,
+      initiative: initiativeShadow.inspect().lastEvaluation
+    });
+    pendingMindShadow.applyReconsideration(result);
+  }
+
+  const memoryAdapter = createShadowObservingMemoryAdapter({
+    memoryAdapter: canonicalMemoryAdapter,
+    shadowEngine: currentSelfShadow,
+    shadowStore: currentSelfShadowStore,
+    onUserTurn: observeUserPermission
+  });
+  const bridge = createRuntimeBridge({ bindings, modelAdapter, memoryAdapter });
+  const localResponder = createLocalResponderForPersona(bindings);
+  const readCurrentSelfContext = () => createCurrentSelfResponderContext({
+    bootReport: bootCurrentSelfShadow,
+    shadowInspection: currentSelfShadow.inspect()
+  });
+
   const bootInitiativeEvaluation = initiativeShadow.evaluate();
   const initiativeShadowScheduler = createInitiativeShadowScheduler({
     engine: initiativeShadow,
-    intervalMs: 60_000
+    intervalMs: 60_000,
+    onEvaluation: evaluation => pendingMindShadow.observeInitiative({
+      evaluation,
+      currentSelf: currentSelfShadow.inspect().current
+    })
   });
   initiativeShadowScheduler.start({ initialEvaluation: bootInitiativeEvaluation });
 
@@ -170,6 +193,13 @@ try{
       scheduler: initiativeShadowScheduler.inspect()
     })
   });
+  const pendingMindShadowDiagnostics = Object.freeze({
+    mode: 'shadow',
+    persistence: 'memory-only',
+    affectsRuntime: false,
+    emitsMessages: false,
+    inspect: () => pendingMindShadow.inspect()
+  });
 
   Object.defineProperties(window, {
     PCAIRuntime: { value: runtime, writable: false, configurable: false, enumerable: false },
@@ -181,7 +211,8 @@ try{
     PCAILocalReply: { value: localReply, writable: false, configurable: false, enumerable: false },
     PCAICurrentSelfShadow: { value: currentSelfShadowDiagnostics, writable: false, configurable: false, enumerable: false },
     PCAICurrentSelfContext: { value: currentSelfContextDiagnostics, writable: false, configurable: false, enumerable: false },
-    PCAIInitiativeShadow: { value: initiativeShadowDiagnostics, writable: false, configurable: false, enumerable: false }
+    PCAIInitiativeShadow: { value: initiativeShadowDiagnostics, writable: false, configurable: false, enumerable: false },
+    PCAIPendingMindShadow: { value: pendingMindShadowDiagnostics, writable: false, configurable: false, enumerable: false }
   });
 
   await import('../app.js');
