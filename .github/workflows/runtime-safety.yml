@@ -14,6 +14,7 @@ on:
       - feature/pending-mind-sleep-carryover
       - feature/pending-mind-decay-shadow
       - feature/memory-importance-shadow
+      - feature/memory-recall-ranking-offline-shadow
   pull_request:
     branches:
       - main
