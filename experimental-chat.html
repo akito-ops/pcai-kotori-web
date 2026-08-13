@@ -62,6 +62,49 @@
         <p class="privacy">Experimental Memoryは通常の関連記憶検索だけを差し替えます。昨日・先週・前回などの時間指定Recall、記憶保存形式、睡眠処理、自発発話は変更しません。OFFで従来方式へ戻ります。</p>
       </aside>
     </section>
+
+    <section class="memory-card prototype-state-card" aria-label="PCAI内部状態の安全な観測パネル">
+      <div class="panel-head">
+        <div><p class="kicker">PCAI OBSERVABLE STATE</p><h2>いまの「ことり」</h2></div>
+        <strong>診断のみ</strong>
+      </div>
+      <div class="prototype-state-grid">
+        <section>
+          <h3>Continuity / Current Self</h3>
+          <dl class="state-dl">
+            <div><dt>継続世代</dt><dd id="state-continuity">—</dd></div>
+            <div><dt>前commit</dt><dd id="state-previous-commit">—</dd></div>
+            <div><dt>関係距離</dt><dd id="state-relationship">—</dd></div>
+          </dl>
+          <p id="state-self-summary" class="state-summary">—</p>
+          <p class="state-subhead">Active Concern <strong id="state-active-count">0</strong></p>
+          <ul id="state-active-concerns" class="memory-list state-list"></ul>
+        </section>
+        <section>
+          <h3>Pending Mind</h3>
+          <p class="state-subhead">保留中 <strong id="state-pending-count">0</strong></p>
+          <ul id="state-pending-list" class="memory-list state-list"></ul>
+          <p class="privacy">「言おうとした／保留した」という構造化状態だけを表示します。内部推論は保存・表示しません。</p>
+        </section>
+        <section>
+          <h3>Initiative Shadow</h3>
+          <dl class="state-dl">
+            <div><dt>判定</dt><dd id="state-initiative-action">—</dd></div>
+            <div><dt>理由</dt><dd id="state-initiative-reason">—</dd></div>
+            <div><dt>final</dt><dd id="state-initiative-final">—</dd></div>
+            <div><dt>実発話</dt><dd id="state-initiative-emission">—</dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>Safety / Experimental</h3>
+          <dl class="state-dl">
+            <div><dt>Experimental Memory</dt><dd id="state-experimental-memory">OFF</dd></div>
+            <div><dt>Autonomous Actions</dt><dd id="state-autonomy">OFF</dd></div>
+          </dl>
+          <p class="privacy">このパネルは観測専用です。状態変更・自発発話・ツール実行の操作はありません。</p>
+        </section>
+      </div>
+    </section>
   </main>
 
   <dialog id="llm-dialog" class="llm-dialog">
@@ -86,11 +129,13 @@
       <li>ON時だけ通常の関連記憶Recallを新方式へ切替</li>
       <li>時間指定Recallは従来方式を維持</li>
       <li>関連性が弱い場合は従来候補へフォールバック</li>
+      <li>Current Self / Pending Mind / Initiativeは観測専用</li>
       <li>自発発話・ツール実行は無効</li>
     </ul>
   </dialog>
 
-  <script type="module" src="./src/bootstrap-experimental-memory.js?v=0.5.0-exp1"></script>
-  <script type="module" src="./src/experimental-memory-ui.js?v=0.5.0-exp1"></script>
+  <script type="module" src="./src/bootstrap-experimental-memory.js?v=0.5.1-exp1"></script>
+  <script type="module" src="./src/experimental-memory-ui.js?v=0.5.1-exp1"></script>
+  <script type="module" src="./src/prototype-state-panel.js?v=0.5.1-exp1"></script>
 </body>
 </html>
