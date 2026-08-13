@@ -17,6 +17,7 @@ const baseline = engine.inspect();
 assert.equal(baseline.mode, 'shadow');
 assert.equal(baseline.persisted, false);
 assert.equal(baseline.affectsRuntime, false);
+assert.equal(baseline.seededFromSnapshot, false);
 assert.equal(baseline.current.continuity.generation, 0);
 assert.equal(baseline.lastReport, null);
 
@@ -54,6 +55,25 @@ const second = engine.previewSleep({
 });
 assert.equal(second.candidate.continuity.generation, 2);
 assert.equal(second.candidate.personaId, 'kagaribi-kotori');
+
+const resumed = createCurrentSelfShadowEngine({
+  personaId: 'kagaribi-kotori',
+  initialSelf: second.candidate,
+  clock: () => '2026-08-14T00:00:00.000Z'
+});
+assert.equal(resumed.seededFromSnapshot, true);
+assert.equal(resumed.inspect().current.continuity.generation, 2, 'loading snapshot must not advance generation');
+const third = resumed.previewSleep({
+  commitId: 'commit-003',
+  reconstructedAt: '2026-08-14T01:00:00.000Z',
+  turns: [{ role: 'user', content: '今日も続きから話そう' }]
+});
+assert.equal(third.candidate.continuity.generation, 3, 'next successful sleep advances exactly one generation');
+
+assert.throws(() => createCurrentSelfShadowEngine({
+  personaId: 'another-persona',
+  initialSelf: second.candidate
+}), /cannot cross persona boundaries/);
 
 const reset = engine.reset();
 assert.equal(reset.continuity.generation, 0);
