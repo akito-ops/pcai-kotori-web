@@ -15,6 +15,9 @@ let stored = JSON.stringify(initialState);
 let previewCalls = 0;
 let resetCalls = 0;
 let observedAfterCanonicalWrite = false;
+let shadowWrites = 0;
+let shadowRemoves = 0;
+let lastShadowSnapshot = null;
 
 const canonical = {
   storageKey: 'pcai.test',
@@ -29,17 +32,23 @@ const shadow = {
     observedAfterCanonicalWrite = current.head === payload.commitId;
     assert.equal(payload.commitId, 'new-head');
     assert.equal(payload.turns.length, 2);
+    return { candidate: { personaId: 'kagaribi-kotori', continuity: { generation: 1 } } };
   },
   reset(){ resetCalls += 1; }
 };
+const shadowStore = {
+  write(snapshot){ shadowWrites += 1; lastShadowSnapshot = snapshot; },
+  remove(){ shadowRemoves += 1; }
+};
 
-const adapter = createShadowObservingMemoryAdapter({ memoryAdapter: canonical, shadowEngine: shadow });
+const adapter = createShadowObservingMemoryAdapter({ memoryAdapter: canonical, shadowEngine: shadow, shadowStore });
 const normalWrite = {
   ...initialState,
   shortTerm: [...initialState.shortTerm, { role: 'user', content: '追加', at: '2026-08-13T00:00:02.000Z' }]
 };
 adapter.write(JSON.stringify(normalWrite));
 assert.equal(previewCalls, 0, 'ordinary memory writes must not trigger sleep reconstruction');
+assert.equal(shadowWrites, 0, 'ordinary memory writes must not persist Current Self snapshot');
 
 const slept = {
   ...normalWrite,
@@ -52,6 +61,8 @@ assert.equal(result, 'canonical-ok');
 assert.equal(previewCalls, 1);
 assert.equal(observedAfterCanonicalWrite, true, 'shadow must run only after canonical memory succeeds');
 assert.equal(stored, JSON.stringify(slept), 'shadow observation must not rewrite canonical state');
+assert.equal(shadowWrites, 1, 'successful sleep must persist exactly one shadow snapshot');
+assert.equal(lastShadowSnapshot.continuity.generation, 1);
 
 const originalWarn = console.warn;
 console.warn = () => {};
@@ -61,6 +72,7 @@ try{
     reset(){}
   };
   let throwingStored = JSON.stringify(initialState);
+  let unsafeShadowWrite = 0;
   const safeAdapter = createShadowObservingMemoryAdapter({
     memoryAdapter: {
       storageKey: 'pcai.test',
@@ -68,19 +80,26 @@ try{
       write(value){ throwingStored = value; return 'still-saved'; },
       remove(){ throwingStored = null; }
     },
-    shadowEngine: throwingShadow
+    shadowEngine: throwingShadow,
+    shadowStore: {
+      write(){ unsafeShadowWrite += 1; },
+      remove(){}
+    }
   });
   assert.equal(safeAdapter.write(JSON.stringify(slept)), 'still-saved', 'shadow failure must not fail canonical write');
   assert.equal(throwingStored, JSON.stringify(slept));
+  assert.equal(unsafeShadowWrite, 0, 'failed reconstruction must not persist a snapshot');
 } finally {
   console.warn = originalWarn;
 }
 
 adapter.remove();
 assert.equal(stored, null);
-assert.equal(resetCalls, 1, 'canonical remove must reset only the in-memory shadow');
+assert.equal(resetCalls, 1, 'canonical remove must reset the in-memory shadow');
+assert.equal(shadowRemoves, 1, 'canonical remove must also clear isolated shadow snapshot');
 
 let blockedPreview = 0;
+let blockedShadowWrite = 0;
 const failingCanonical = createShadowObservingMemoryAdapter({
   memoryAdapter: {
     storageKey: 'pcai.test',
@@ -90,9 +109,14 @@ const failingCanonical = createShadowObservingMemoryAdapter({
   shadowEngine: {
     previewSleep(){ blockedPreview += 1; },
     reset(){}
+  },
+  shadowStore: {
+    write(){ blockedShadowWrite += 1; },
+    remove(){}
   }
 });
 assert.throws(() => failingCanonical.write(JSON.stringify(slept)), /canonical failed/);
 assert.equal(blockedPreview, 0, 'shadow must not advance when canonical memory fails');
+assert.equal(blockedShadowWrite, 0, 'shadow snapshot must not persist when canonical memory fails');
 
 console.log('memory shadow observer contracts: OK');
