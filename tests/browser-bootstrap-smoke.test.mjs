@@ -32,6 +32,7 @@ const elementFor = id => {
 };
 
 const documentStub = {
+  visibilityState: 'visible',
   getElementById(id){ return elementFor(id); },
   createElement(tagName){ return new FakeElement(tagName); },
   createTextNode(text){ return Object.freeze({ nodeType: 3, textContent: String(text) }); },
@@ -71,8 +72,15 @@ assert.notEqual(windowStub.PCAICurrentSelfShadow.snapshotStorageKey, windowStub.
 assert.equal(windowStub.PCAICurrentSelfShadow.previewSleep, undefined, 'shadow mutation API must not be exposed');
 assert.equal(windowStub.PCAICurrentSelfShadow.inspect().snapshotAvailableAtBoot, false);
 assert.equal(windowStub.PCAICurrentSelfShadow.inspect().boot.available, false);
+assert.equal(typeof windowStub.PCAIInitiativeShadow.inspect, 'function');
+assert.equal(windowStub.PCAIInitiativeShadow.affectsRuntime, false);
+assert.equal(windowStub.PCAIInitiativeShadow.autonomousActionsEnabled, false);
+assert.equal(windowStub.PCAIInitiativeShadow.emitsMessages, false);
+assert.equal(windowStub.PCAIInitiativeShadow.evaluationCadence, 'boot-only');
+assert.equal(windowStub.PCAIInitiativeShadow.evaluate, undefined, 'initiative mutation/evaluation API must not be exposed');
+assert.equal(windowStub.PCAIInitiativeShadow.inspect().lastEvaluation.wouldEmitMessage, false);
 
-for(const property of ['PCAIRuntime','PCAIBindings','PCAIBridge','PCAILocalResponder','PCAILocalReply','PCAICurrentSelfShadow']){
+for(const property of ['PCAIRuntime','PCAIBindings','PCAIBridge','PCAILocalResponder','PCAILocalReply','PCAICurrentSelfShadow','PCAIInitiativeShadow']){
   const descriptor = Object.getOwnPropertyDescriptor(windowStub, property);
   assert.equal(descriptor?.writable, false, `${property} must stay read-only`);
   assert.equal(descriptor?.configurable, false, `${property} must not be replaceable`);
@@ -82,7 +90,7 @@ const newReply = windowStub.PCAILocalReply({ message: '誕生日は？' }, () =>
 assert.match(newReply, /7月7日/);
 
 const chat = elementFor('chat');
-assert.ok(chat.children.length >= 1, 'app should render an initial chat message');
+assert.equal(chat.children.length, 1, 'boot-only Initiative Shadow must not emit an extra message');
 let renderedText = chat.children.map(node => node.textContent).join('\n');
 assert.match(renderedText, /篝火ことり/);
 assert.doesNotMatch(renderedText, /起動を停止しました/);
@@ -121,5 +129,6 @@ assert.equal(snapshot.continuity.generation, 1);
 assert.equal(snapshot.continuity.previousCommitId, stored.head);
 assert.equal(windowStub.PCAICurrentSelfShadow.inspect().current.continuity.generation, 1);
 assert.equal(windowStub.PCAICurrentSelfShadow.inspect().affectsRuntime, false);
+assert.equal(windowStub.PCAIInitiativeShadow.inspect().lastEvaluation.wouldEmitMessage, false, 'sleep must not turn Shadow evaluation into a real message');
 
 console.log('browser bootstrap smoke: OK');
