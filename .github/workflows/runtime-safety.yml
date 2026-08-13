@@ -11,6 +11,7 @@ on:
       - feature/initiative-shadow-v1
       - feature/initiative-shadow-periodic
       - feature/pending-mind-permission-shadow
+      - feature/pending-mind-sleep-carryover
   pull_request:
     branches:
       - main
