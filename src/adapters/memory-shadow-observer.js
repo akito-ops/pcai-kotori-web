@@ -24,30 +24,39 @@ function isResetTransition(before, after){
   );
 }
 
-export function createShadowObservingMemoryAdapter({ memoryAdapter, shadowEngine }){
+export function createShadowObservingMemoryAdapter({ memoryAdapter, shadowEngine, shadowStore = null }){
   if(!memoryAdapter || typeof memoryAdapter.read !== 'function' || typeof memoryAdapter.write !== 'function'){
     throw new TypeError('canonical memory adapter with read()/write() is required');
   }
   if(!shadowEngine || typeof shadowEngine.previewSleep !== 'function' || typeof shadowEngine.reset !== 'function'){
     throw new TypeError('Current Self shadow engine is required');
   }
+  if(shadowStore && (typeof shadowStore.write !== 'function' || typeof shadowStore.remove !== 'function')){
+    throw new TypeError('Current Self shadow store must provide write()/remove()');
+  }
 
   let previousSerialized = memoryAdapter.read();
+
+  function resetShadow(){
+    shadowEngine.reset();
+    if(shadowStore) shadowStore.remove();
+  }
 
   function observeTransition(beforeSerialized, afterSerialized){
     const before = parseState(beforeSerialized);
     const after = parseState(afterSerialized);
 
     if(isSleepTransition(before, after)){
-      shadowEngine.previewSleep({
+      const report = shadowEngine.previewSleep({
         commitId: after.head,
         turns: before.shortTerm,
         reconstructedAt: after.commits?.at(-1)?.at || new Date().toISOString()
       });
+      if(shadowStore) shadowStore.write(report.candidate);
       return;
     }
 
-    if(isResetTransition(before, after)) shadowEngine.reset();
+    if(isResetTransition(before, after)) resetShadow();
   }
 
   return Object.freeze({
@@ -68,7 +77,7 @@ export function createShadowObservingMemoryAdapter({ memoryAdapter, shadowEngine
     remove(){
       const result = typeof memoryAdapter.remove === 'function' ? memoryAdapter.remove() : undefined;
       previousSerialized = null;
-      try{ shadowEngine.reset(); }
+      try{ resetShadow(); }
       catch(error){ console.warn('PCAI Current Self shadow reset failed', error); }
       return result;
     }
