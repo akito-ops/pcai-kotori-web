@@ -18,6 +18,7 @@ let observedAfterCanonicalWrite = false;
 let shadowWrites = 0;
 let shadowRemoves = 0;
 let lastShadowSnapshot = null;
+let observedUserTurns = [];
 
 const canonical = {
   storageKey: 'pcai.test',
@@ -41,19 +42,37 @@ const shadowStore = {
   remove(){ shadowRemoves += 1; }
 };
 
-const adapter = createShadowObservingMemoryAdapter({ memoryAdapter: canonical, shadowEngine: shadow, shadowStore });
+const adapter = createShadowObservingMemoryAdapter({
+  memoryAdapter: canonical,
+  shadowEngine: shadow,
+  shadowStore,
+  onUserTurn(turn){
+    const current = JSON.parse(stored);
+    assert.equal(current.shortTerm.at(-1)?.content, turn.content, 'user turn observer must run after canonical write');
+    observedUserTurns.push(turn);
+  }
+});
 const normalWrite = {
   ...initialState,
-  shortTerm: [...initialState.shortTerm, { role: 'user', content: '追加', at: '2026-08-13T00:00:02.000Z' }]
+  shortTerm: [...initialState.shortTerm, { role: 'user', content: '言いたいことがあるなら言ってね', at: '2026-08-13T00:00:02.000Z' }]
 };
 adapter.write(JSON.stringify(normalWrite));
 assert.equal(previewCalls, 0, 'ordinary memory writes must not trigger sleep reconstruction');
 assert.equal(shadowWrites, 0, 'ordinary memory writes must not persist Current Self snapshot');
+assert.equal(observedUserTurns.length, 1, 'new user turn must be observed once');
+assert.equal(observedUserTurns[0].content, '言いたいことがあるなら言ってね');
+
+const assistantOnly = {
+  ...normalWrite,
+  shortTerm: [...normalWrite.shortTerm, { role: 'assistant', content: 'うん', at: '2026-08-13T00:00:03.000Z' }]
+};
+adapter.write(JSON.stringify(assistantOnly));
+assert.equal(observedUserTurns.length, 1, 'assistant turns must not trigger relational permission observation');
 
 const slept = {
-  ...normalWrite,
+  ...assistantOnly,
   head: 'new-head',
-  commits: [...normalWrite.commits, { id: 'new-head', at: '2026-08-13T01:00:00.000Z' }],
+  commits: [...assistantOnly.commits, { id: 'new-head', at: '2026-08-13T01:00:00.000Z' }],
   shortTerm: []
 };
 const result = adapter.write(JSON.stringify(slept));
@@ -73,6 +92,7 @@ try{
   };
   let throwingStored = JSON.stringify(initialState);
   let unsafeShadowWrite = 0;
+  let permissionObserverCalls = 0;
   const safeAdapter = createShadowObservingMemoryAdapter({
     memoryAdapter: {
       storageKey: 'pcai.test',
@@ -84,8 +104,11 @@ try{
     shadowStore: {
       write(){ unsafeShadowWrite += 1; },
       remove(){}
-    }
+    },
+    onUserTurn(){ permissionObserverCalls += 1; throw new Error('permission observer failed'); }
   });
+  assert.equal(safeAdapter.write(JSON.stringify(normalWrite)), 'still-saved', 'permission observer failure must not fail canonical write');
+  assert.equal(permissionObserverCalls, 1);
   assert.equal(safeAdapter.write(JSON.stringify(slept)), 'still-saved', 'shadow failure must not fail canonical write');
   assert.equal(throwingStored, JSON.stringify(slept));
   assert.equal(unsafeShadowWrite, 0, 'failed reconstruction must not persist a snapshot');
@@ -100,6 +123,7 @@ assert.equal(shadowRemoves, 1, 'canonical remove must also clear isolated shadow
 
 let blockedPreview = 0;
 let blockedShadowWrite = 0;
+let blockedPermission = 0;
 const failingCanonical = createShadowObservingMemoryAdapter({
   memoryAdapter: {
     storageKey: 'pcai.test',
@@ -113,10 +137,12 @@ const failingCanonical = createShadowObservingMemoryAdapter({
   shadowStore: {
     write(){ blockedShadowWrite += 1; },
     remove(){}
-  }
+  },
+  onUserTurn(){ blockedPermission += 1; }
 });
-assert.throws(() => failingCanonical.write(JSON.stringify(slept)), /canonical failed/);
+assert.throws(() => failingCanonical.write(JSON.stringify(normalWrite)), /canonical failed/);
 assert.equal(blockedPreview, 0, 'shadow must not advance when canonical memory fails');
 assert.equal(blockedShadowWrite, 0, 'shadow snapshot must not persist when canonical memory fails');
+assert.equal(blockedPermission, 0, 'permission observer must not run when canonical memory fails');
 
 console.log('memory shadow observer contracts: OK');
