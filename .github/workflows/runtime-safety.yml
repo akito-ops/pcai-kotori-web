@@ -15,6 +15,7 @@ on:
       - feature/pending-mind-decay-shadow
       - feature/memory-importance-shadow
       - feature/memory-recall-ranking-offline-shadow
+      - feature/memory-recall-diff-observer
   pull_request:
     branches:
       - main
