@@ -89,6 +89,13 @@ assert.notEqual(elementFor('state-initiative-action').textContent,'');
 assert.equal(elementFor('state-autonomy').textContent,'OFF');
 assert.equal(elementFor('state-experimental-memory').textContent,'ON');
 
+const pendingBefore=windowStub.PCAIPendingMindShadow.inspect().pendingCount;
+assert.ok(pendingBefore>=1,'post-sleep Shadow evaluation should be able to form a held Pending Mind item');
+const manualReply=windowStub.PCAILocalReply({message:'今、話したいことある？'},()=> 'legacy');
+assert.match(manualReply,/少し話そうか迷ってた/);
+assert.match(manualReply,/PCAIの記憶について話そう/);
+assert.equal(windowStub.PCAIPendingMindShadow.inspect().pendingCount,pendingBefore,'manual disclosure must not consume Pending Mind');
+
 const afterSleepCount=chat.children.length;
 assert.ok(afterSleepCount>=beforeSleepCount,'sleep may add its explicit user-triggered result');
 await new Promise(resolve=>setTimeout(resolve,20));
