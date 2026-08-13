@@ -16,6 +16,7 @@ on:
       - feature/memory-importance-shadow
       - feature/memory-recall-ranking-offline-shadow
       - feature/memory-recall-diff-observer
+      - feature/memory-recall-evaluation-harness
   pull_request:
     branches:
       - main
