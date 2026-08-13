@@ -6,6 +6,7 @@ on:
       - refactor/modular-pcai-core
       - feature/current-self-v1
       - feature/current-self-boot-shadow
+      - feature/current-self-readonly-context
   pull_request:
     branches:
       - main
