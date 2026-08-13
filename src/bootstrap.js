@@ -13,6 +13,7 @@ import { createBootCurrentSelfShadow } from './core/current-self-boot-shadow.js'
 import { createCurrentSelfResponderContext } from './core/current-self-responder-context.js';
 import { createCurrentSelfInitiativeContext } from './core/current-self-initiative-context.js';
 import { createInitiativeShadowEngine } from './core/initiative-shadow.js';
+import { createInitiativeShadowScheduler } from './core/initiative-shadow-scheduler.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -55,6 +56,28 @@ function currentJstHour(){
     hour: '2-digit',
     hour12: false
   }));
+}
+
+function parseCanonicalState(serialized){
+  try{
+    const state = serialized ? JSON.parse(serialized) : null;
+    return state && typeof state === 'object' ? state : null;
+  }catch{
+    return null;
+  }
+}
+
+function idleSecondsFromCanonical(memoryAdapter){
+  const state = parseCanonicalState(memoryAdapter.read());
+  if(!state) return 0;
+  const turns = Array.isArray(state.shortTerm) ? state.shortTerm : [];
+  const lastTurnAt = [...turns].reverse().find(turn => typeof turn?.at === 'string')?.at;
+  const commits = Array.isArray(state.commits) ? state.commits : [];
+  const lastCommitAt = [...commits].reverse().find(commit => typeof commit?.at === 'string')?.at;
+  const activityAt = lastTurnAt || lastCommitAt || state.createdAt;
+  const activityMs = Date.parse(activityAt || '');
+  if(!Number.isFinite(activityMs)) return 0;
+  return Math.max(0, Math.min(86400, Math.floor((Date.now() - activityMs) / 1000)));
 }
 
 try{
@@ -100,11 +123,16 @@ try{
       visible: typeof document.visibilityState === 'string'
         ? document.visibilityState !== 'hidden'
         : true,
-      idleSeconds: 0,
+      idleSeconds: idleSecondsFromCanonical(canonicalMemoryAdapter),
       hour: currentJstHour()
     })
   });
-  initiativeShadow.evaluate();
+  const bootInitiativeEvaluation = initiativeShadow.evaluate();
+  const initiativeShadowScheduler = createInitiativeShadowScheduler({
+    engine: initiativeShadow,
+    intervalMs: 60_000
+  });
+  initiativeShadowScheduler.start({ initialEvaluation: bootInitiativeEvaluation });
 
   const localReply = (context, legacyReply) => createLocalReplyRouter({
     responder: localResponder,
@@ -129,11 +157,17 @@ try{
   });
   const initiativeShadowDiagnostics = Object.freeze({
     mode: 'shadow',
-    evaluationCadence: 'boot-only',
+    evaluationCadence: '60s',
+    intervalMs: 60_000,
+    historyLimit: 12,
+    historyPersistence: 'memory-only',
     affectsRuntime: false,
     autonomousActionsEnabled: false,
     emitsMessages: false,
-    inspect: () => initiativeShadow.inspect()
+    inspect: () => Object.freeze({
+      ...initiativeShadow.inspect(),
+      scheduler: initiativeShadowScheduler.inspect()
+    })
   });
 
   // Read-only diagnostics/compatibility bridge. Secrets and canonical user memories are never exposed here.
