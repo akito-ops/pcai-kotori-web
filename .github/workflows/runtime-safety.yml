@@ -21,6 +21,7 @@ on:
       - feature/experimental-memory-chat-v1
       - feature/pcai-prototype-state-panel-v1
       - feature/pending-mind-manual-disclosure-v1
+      - feature/one-shot-initiative-optin-v1
   pull_request:
     branches:
       - main
