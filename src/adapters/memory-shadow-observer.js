@@ -24,7 +24,20 @@ function isResetTransition(before, after){
   );
 }
 
-export function createShadowObservingMemoryAdapter({ memoryAdapter, shadowEngine, shadowStore = null }){
+function newestUserTurn(before, after){
+  if(!after || !Array.isArray(after.shortTerm)) return null;
+  const beforeLength = Array.isArray(before?.shortTerm) ? before.shortTerm.length : 0;
+  if(after.shortTerm.length <= beforeLength) return null;
+  const added = after.shortTerm.slice(beforeLength);
+  return [...added].reverse().find(turn => turn?.role === 'user' && typeof turn?.content === 'string') || null;
+}
+
+export function createShadowObservingMemoryAdapter({
+  memoryAdapter,
+  shadowEngine,
+  shadowStore = null,
+  onUserTurn = null
+}){
   if(!memoryAdapter || typeof memoryAdapter.read !== 'function' || typeof memoryAdapter.write !== 'function'){
     throw new TypeError('canonical memory adapter with read()/write() is required');
   }
@@ -33,6 +46,9 @@ export function createShadowObservingMemoryAdapter({ memoryAdapter, shadowEngine
   }
   if(shadowStore && (typeof shadowStore.write !== 'function' || typeof shadowStore.remove !== 'function')){
     throw new TypeError('Current Self shadow store must provide write()/remove()');
+  }
+  if(onUserTurn !== null && typeof onUserTurn !== 'function'){
+    throw new TypeError('onUserTurn must be a function when provided');
   }
 
   let previousSerialized = memoryAdapter.read();
@@ -45,6 +61,12 @@ export function createShadowObservingMemoryAdapter({ memoryAdapter, shadowEngine
   function observeTransition(beforeSerialized, afterSerialized){
     const before = parseState(beforeSerialized);
     const after = parseState(afterSerialized);
+
+    const userTurn = newestUserTurn(before, after);
+    if(userTurn && onUserTurn){
+      try{ onUserTurn(Object.freeze({ ...userTurn })); }
+      catch(error){ console.warn('PCAI relational permission shadow observation failed', error); }
+    }
 
     if(isSleepTransition(before, after)){
       const report = shadowEngine.previewSleep({
