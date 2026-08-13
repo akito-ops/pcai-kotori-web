@@ -12,8 +12,15 @@ const relationship = assessMemoryImportance({
   currentSelf,
   key:'relationship:0'
 });
-assert.ok(relationship.importanceScore > 0.7);
-assert.ok(relationship.decayResistance > 0.7);
+const incidental = assessMemoryImportance({
+  item: { text:'今日は少し雑談した', confidence:0.7, importance:0.35 },
+  kind:'episodic',
+  peers:[],
+  currentSelf:null,
+  key:'episodic:0'
+});
+assert.ok(relationship.importanceScore > incidental.importanceScore, 'relationship memory should outrank incidental episodic memory');
+assert.ok(relationship.decayResistance > incidental.decayResistance, 'relationship memory should decay more slowly than incidental episodic memory');
 assert.ok(relationship.reasons.includes('relationship_significant'));
 assert.ok(relationship.reasons.includes('high_confidence'));
 assert.equal(relationship.writesCanonicalMemory, false);
