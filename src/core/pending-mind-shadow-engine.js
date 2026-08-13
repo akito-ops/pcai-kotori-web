@@ -10,11 +10,32 @@ function deepFreeze(value){
   return Object.freeze(value);
 }
 
-export function createPendingMindShadowEngine({ clock = () => new Date().toISOString() } = {}){
+function seedItem(item){
+  const topic = clean(item?.topic, 80);
+  if(!topic || item?.carryOver === false) return null;
+  return deepFreeze({
+    id: clean(item?.id, 80),
+    type: clean(item?.type, 40) || 'withheld_intention',
+    topic,
+    motive: clean(item?.motive, 40) || 'share_or_ask',
+    inhibition: clean(item?.inhibition, 40) || 'carried_over',
+    state: 'held',
+    createdAt: clean(item?.createdAt, 40),
+    carryOver: true,
+    shadowOnly: true,
+    restoredFromSnapshot: true
+  });
+}
+
+export function createPendingMindShadowEngine({
+  initialPending = [],
+  clock = () => new Date().toISOString()
+} = {}){
   if(typeof clock !== 'function') throw new TypeError('Pending Mind shadow clock must be a function');
+  if(!Array.isArray(initialPending)) throw new TypeError('initialPending must be an array');
 
   let sequence = 0;
-  let pending = [];
+  let pending = initialPending.map(seedItem).filter(Boolean).slice(-MAX_PENDING);
   let lastReconsideration = null;
 
   function observeInitiative({ evaluation, currentSelf }){
@@ -35,7 +56,8 @@ export function createPendingMindShadowEngine({ clock = () => new Date().toISOSt
       state: 'held',
       createdAt: clock(),
       carryOver: false,
-      shadowOnly: true
+      shadowOnly: true,
+      restoredFromSnapshot: false
     });
     pending = [...pending, item].slice(-MAX_PENDING);
     return item;
@@ -52,18 +74,45 @@ export function createPendingMindShadowEngine({ clock = () => new Date().toISOSt
     return true;
   }
 
+  function exportForSleep(){
+    return Object.freeze(pending
+      .filter(item => item.state === 'held' || item.state === 'would_speak_shadow')
+      .slice(-MAX_PENDING)
+      .map(item => deepFreeze({
+        id: clean(item.id, 80),
+        type: 'withheld_intention',
+        topic: clean(item.topic, 80),
+        motive: clean(item.motive, 40) || 'share_or_ask',
+        inhibition: clean(item.inhibition, 40) || 'initiative_hold',
+        // A would-speak result is reconsidered after wake; it never carries over as
+        // permission to emit a message automatically.
+        state: 'held',
+        createdAt: clean(item.createdAt, 40),
+        carryOver: true
+      })));
+  }
+
+  function clearAfterSleep(){
+    pending = [];
+    lastReconsideration = null;
+  }
+
   return Object.freeze({
     mode: 'shadow',
     persisted: false,
     emitsMessages: false,
+    restoredCount: pending.filter(item => item.restoredFromSnapshot).length,
     observeInitiative,
     applyReconsideration,
+    exportForSleep,
+    clearAfterSleep,
     read: () => Object.freeze([...pending]),
     inspect: () => Object.freeze({
       mode: 'shadow',
       persisted: false,
       emitsMessages: false,
       pendingCount: pending.length,
+      restoredCount: pending.filter(item => item.restoredFromSnapshot).length,
       pending: Object.freeze([...pending]),
       lastReconsideration
     })
