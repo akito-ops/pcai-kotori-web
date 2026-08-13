@@ -3,9 +3,11 @@ import { createRuntimeBindings } from './core/runtime-bindings.js';
 import { assertLegacyCompatibility } from './core/legacy-contract.js';
 import { createModelHttpAdapter } from './adapters/model-http.js';
 import { createLocalStorageMemoryAdapter } from './adapters/memory-local-storage.js';
+import { createShadowObservingMemoryAdapter } from './adapters/memory-shadow-observer.js';
 import { createRuntimeBridge } from './core/runtime-bridge.js';
 import { createLocalResponderForPersona } from './responders/responder-factory.js';
 import { createLocalReplyRouter } from './core/local-reply-router.js';
+import { createCurrentSelfShadowEngine } from './core/current-self-shadow.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -47,9 +49,16 @@ try{
   const bindings = createRuntimeBindings(runtime);
   assertLegacyCompatibility(bindings);
   const modelAdapter = createModelHttpAdapter(bindings);
-  const memoryAdapter = createLocalStorageMemoryAdapter({
+  const canonicalMemoryAdapter = createLocalStorageMemoryAdapter({
     storageKey: bindings.storageKey,
     storage: window.localStorage
+  });
+  const currentSelfShadow = createCurrentSelfShadowEngine({
+    personaId: bindings.identity.personaId
+  });
+  const memoryAdapter = createShadowObservingMemoryAdapter({
+    memoryAdapter: canonicalMemoryAdapter,
+    shadowEngine: currentSelfShadow
   });
   const bridge = createRuntimeBridge({ bindings, modelAdapter, memoryAdapter });
   const localResponder = createLocalResponderForPersona(bindings);
@@ -57,6 +66,12 @@ try{
     responder: localResponder,
     legacyReply
   }).reply(context);
+  const currentSelfShadowDiagnostics = Object.freeze({
+    mode: 'shadow',
+    persisted: false,
+    affectsRuntime: false,
+    inspect: () => currentSelfShadow.inspect()
+  });
 
   // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
   Object.defineProperties(window, {
@@ -98,6 +113,12 @@ try{
     },
     PCAILocalReply: {
       value: localReply,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAICurrentSelfShadow: {
+      value: currentSelfShadowDiagnostics,
       writable: false,
       configurable: false,
       enumerable: false
