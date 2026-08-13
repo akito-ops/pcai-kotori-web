@@ -9,6 +9,7 @@ on:
       - feature/current-self-readonly-context
       - feature/current-self-reply-selection
       - feature/initiative-shadow-v1
+      - feature/initiative-shadow-periodic
   pull_request:
     branches:
       - main
