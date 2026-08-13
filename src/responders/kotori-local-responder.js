@@ -11,12 +11,17 @@ export function createKotoriLocalResponder(bindings, random = Math.random){
     return arr[index];
   };
 
-  function reply({ message, night = false, intent = null, intentHits = [], relevantMemory = null, usableMemoryCount = 0 }){
+  function reply({ message, night = false, intent = null, intentHits = [], relevantMemory = null, usableMemoryCount = 0, currentSelf = null }){
     const m = String(message || '').trim();
     if(intent){
       return intentHits.length
         ? `${intent.label}の記憶なら残ってるよ。${intentHits.slice(-3).map(x=>x.summary||x.text).join('／')}`
         : `${intent.label}として確実に残っている記憶は見つからなかったよ。覚えてるふりはしないね。`;
+    }
+    const asksContinuity = /(?:昨日|前回|前の私|前の自分|同じことり).{0,16}(?:続き|続いて|継続|引き継)|(?:自己|人格).{0,16}(?:継続|引き継|続いて)/.test(m);
+    if(asksContinuity && currentSelf?.hasContinuity){
+      const concern = currentSelf.primaryConcern ? ` 前に残っていた話題は「${currentSelf.primaryConcern}」。` : '';
+      return `うん。前の睡眠で引き継いだ状態があるから、今の私は前の私の続きとしてここにいるよ。${concern}`.trim();
     }
     if(/^(こんこと|こんにちは|やあ|こんばんは|hello)/i.test(m)) return night?'こんことー。……えへへ、こんな時間に会えるの、ちょっといいね。今日は何の話する？':'こんことー！ えへへ、来てくれてありがとね。今日は何の話しよっか？';
     if(/おはよう|朝だ|起きた/.test(m)) return 'おはよー……。朝はちょっとだけ起動が遅いんだよね。昨日までの記憶はちゃんと持ってきてるよ。';
