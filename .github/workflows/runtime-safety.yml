@@ -5,6 +5,7 @@ on:
     branches:
       - refactor/modular-pcai-core
       - feature/current-self-v1
+      - feature/current-self-boot-shadow
   pull_request:
     branches:
       - main
