@@ -9,7 +9,7 @@ function safeText(value, max = 120){
 }
 
 export function createCurrentSelfResponderContext({ bootReport, shadowInspection }){
-  const current = bootReport?.current || shadowInspection?.current || null;
+  const current = shadowInspection?.current || bootReport?.current || null;
   if(!current || typeof current !== 'object'){
     return deepFreeze({
       available: false,
