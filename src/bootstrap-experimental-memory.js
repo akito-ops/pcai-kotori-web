@@ -15,6 +15,7 @@ import { createCurrentSelfInitiativeContext } from './core/current-self-initiati
 import { createInitiativeShadowEngine } from './core/initiative-shadow.js';
 import { createInitiativeShadowScheduler } from './core/initiative-shadow-scheduler.js';
 import { createPendingMindShadowEngine } from './core/pending-mind-shadow-engine.js';
+import { requestPendingMindDisclosure } from './core/pending-mind-manual-disclosure.js';
 import { evaluatePendingMindDecaySet } from './core/pending-mind-decay-shadow.js';
 import { assessLongTermMemoryImportance, assessPendingMindImportance } from './core/memory-importance-shadow.js';
 import { detectRelationalPermission } from './core/relational-permission-shadow.js';
@@ -49,6 +50,10 @@ function idleSecondsFromCanonical(memoryAdapter){
   return Number.isFinite(activityMs)?Math.max(0,Math.min(86400,Math.floor((Date.now()-activityMs)/1000))):0;
 }
 function isTemporalRecall(message){return /(昨日|一昨日|おととい|今日|先週|前回|この前|前に話した).{0,20}(覚えて|何話した|何を話した|何だっけ|思い出|振り返)/.test(String(message||''));}
+function isExplicitPendingDisclosureRequest(message){
+  const m=String(message||'').replace(/\s+/g,'').replace(/[？?！!。]/g,'');
+  return m==='今話したいことある' || m==='何か話したいことある' || m==='言いたいことある' || m==='今言いたいことある';
+}
 function itemFromKey(longTerm,key){
   const [kind,indexText]=String(key||'').split(':'); const index=Number(indexText);
   const items=Array.isArray(longTerm?.[kind])?longTerm[kind]:[];
@@ -74,6 +79,11 @@ try{
   const initiativeShadow=createInitiativeShadowEngine({readCurrentSelf:readInitiativeCurrentSelf,readEnvironment:()=>Object.freeze({visible:document.visibilityState!=='hidden',idleSeconds:idleSecondsFromCanonical(canonicalMemoryAdapter),hour:currentJstHour()})});
   const experimentalMemory=createExperimentalMemoryController({storage:window.localStorage,readCurrentSelf:()=>currentSelfShadow.inspect().current});
 
+  function manualPendingReply(message){
+    if(!isExplicitPendingDisclosureRequest(message)) return null;
+    return requestPendingMindDisclosure({pendingMind:pendingMindShadow.read(),explicitUserRequest:true}).text;
+  }
+
   function experimentalItems(message,limit=6){
     if(!experimentalMemory.inspect().enabled||isTemporalRecall(message)) return [];
     const longTerm=readCanonicalLongTerm();
@@ -91,6 +101,8 @@ try{
   const memoryAdapter=createShadowObservingMemoryAdapter({memoryAdapter:canonicalMemoryAdapter,shadowEngine:currentSelfShadow,shadowStore:currentSelfShadowStore,onUserTurn:observeUserPermission,readPendingForSleep:()=>pendingMindShadow.exportForSleep(),onPendingCarriedOver:()=>pendingMindShadow.clearAfterSleep()});
   const baseBridge=createRuntimeBridge({bindings,modelAdapter,memoryAdapter});
   const bridge=Object.freeze({...baseBridge,chat:request=>{
+    const pendingReply=manualPendingReply(request?.message);
+    if(pendingReply!==null) return Promise.resolve(pendingReply);
     if(!experimentalMemory.inspect().enabled||isTemporalRecall(request?.message)) return baseBridge.chat(request);
     const items=experimentalItems(request?.message,bindings.memory?.sendRelevantMemoriesToModel||6);
     if(!items.length) return baseBridge.chat(request);
@@ -100,6 +112,8 @@ try{
   const readCurrentSelfContext=()=>createCurrentSelfResponderContext({bootReport:bootCurrentSelfShadow,shadowInspection:currentSelfShadow.inspect()});
   const baseLocalReply=(context,legacyReply)=>createLocalReplyRouter({responder:localResponder,legacyReply}).reply(Object.freeze({...context,currentSelf:readCurrentSelfContext()}));
   const localReply=(context,legacyReply)=>{
+    const pendingReply=manualPendingReply(context?.message);
+    if(pendingReply!==null) return pendingReply;
     if(!experimentalMemory.inspect().enabled||context?.intent||isTemporalRecall(context?.message)) return baseLocalReply(context,legacyReply);
     const item=experimentalItems(context?.message,1)[0];
     return baseLocalReply(item?{...context,relevantMemory:item}:context,legacyReply);
