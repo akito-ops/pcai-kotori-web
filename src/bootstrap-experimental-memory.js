@@ -51,7 +51,7 @@ function idleSecondsFromCanonical(memoryAdapter){
 }
 function isTemporalRecall(message){return /(昨日|一昨日|おととい|今日|先週|前回|この前|前に話した).{0,20}(覚えて|何話した|何を話した|何だっけ|思い出|振り返)/.test(String(message||''));}
 function isExplicitPendingDisclosureRequest(message){
-  const m=String(message||'').replace(/\s+/g,'').replace(/[？?！!。]/g,'');
+  const m=String(message||'').replace(/\s+/g,'').replace(/[、，,？?！!。]/g,'');
   return m==='今話したいことある' || m==='何か話したいことある' || m==='言いたいことある' || m==='今言いたいことある';
 }
 function itemFromKey(longTerm,key){
