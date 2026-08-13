@@ -8,6 +8,7 @@ on:
       - feature/current-self-boot-shadow
       - feature/current-self-readonly-context
       - feature/current-self-reply-selection
+      - feature/initiative-shadow-v1
   pull_request:
     branches:
       - main
