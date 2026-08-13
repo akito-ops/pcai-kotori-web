@@ -4,17 +4,24 @@ function clamp01(value, fallback = 0){
   return Math.max(0, Math.min(1, number));
 }
 
+function boundedPending(value, fallback = 0){
+  const number = Number(value);
+  if(!Number.isFinite(number) || number < 0) return fallback;
+  return Math.min(7, number);
+}
+
 function distance(value){
   return ['distant','neutral','familiar','close'].includes(value) ? value : 'neutral';
 }
 
-export function createCurrentSelfInitiativeContext(currentSelf){
+export function createCurrentSelfInitiativeContext(currentSelf, { effectivePendingCount } = {}){
   if(!currentSelf || typeof currentSelf !== 'object'){
     return Object.freeze({
       available: false,
       hasContinuity: false,
       hasPrimaryConcern: false,
       pendingCount: 0,
+      rawPendingCount: 0,
       relationshipDistance: 'neutral',
       curiosity: 0,
       socialOpenness: 0,
@@ -26,14 +33,19 @@ export function createCurrentSelfInitiativeContext(currentSelf){
   const generation = Number.isInteger(currentSelf.continuity?.generation)
     ? currentSelf.continuity.generation
     : 0;
+  const rawPendingCount = Array.isArray(currentSelf.pendingMind)
+    ? Math.min(currentSelf.pendingMind.length, 7)
+    : 0;
+  const pendingCount = effectivePendingCount === undefined
+    ? rawPendingCount
+    : boundedPending(effectivePendingCount, rawPendingCount);
 
   return Object.freeze({
     available: true,
     hasContinuity: generation > 0 || Boolean(currentSelf.continuity?.previousCommitId),
     hasPrimaryConcern: Boolean(currentSelf.activeConcerns?.[0]?.topic),
-    pendingCount: Array.isArray(currentSelf.pendingMind)
-      ? Math.min(currentSelf.pendingMind.length, 7)
-      : 0,
+    pendingCount,
+    rawPendingCount,
     relationshipDistance: distance(currentSelf.relationshipStance?.conversationalDistance),
     curiosity: clamp01(currentSelf.innerState?.curiosity, 0.5),
     socialOpenness: clamp01(currentSelf.innerState?.socialOpenness, 0.5),
