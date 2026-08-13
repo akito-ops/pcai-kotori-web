@@ -13,6 +13,7 @@ on:
       - feature/pending-mind-permission-shadow
       - feature/pending-mind-sleep-carryover
       - feature/pending-mind-decay-shadow
+      - feature/memory-importance-shadow
   pull_request:
     branches:
       - main
