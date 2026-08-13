@@ -10,6 +10,7 @@ import { createLocalResponderForPersona } from './responders/responder-factory.j
 import { createLocalReplyRouter } from './core/local-reply-router.js';
 import { createCurrentSelfShadowEngine } from './core/current-self-shadow.js';
 import { createBootCurrentSelfShadow } from './core/current-self-boot-shadow.js';
+import { createCurrentSelfResponderContext } from './core/current-self-responder-context.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -84,10 +85,14 @@ try{
   });
   const bridge = createRuntimeBridge({ bindings, modelAdapter, memoryAdapter });
   const localResponder = createLocalResponderForPersona(bindings);
+  const readCurrentSelfContext = () => createCurrentSelfResponderContext({
+    bootReport: bootCurrentSelfShadow,
+    shadowInspection: currentSelfShadow.inspect()
+  });
   const localReply = (context, legacyReply) => createLocalReplyRouter({
     responder: localResponder,
     legacyReply
-  }).reply(context);
+  }).reply(Object.freeze({ ...context, currentSelf: readCurrentSelfContext() }));
   const currentSelfShadowDiagnostics = Object.freeze({
     mode: 'shadow',
     snapshotPersisted: true,
@@ -98,6 +103,12 @@ try{
       snapshotAvailableAtBoot: Boolean(previousSelfSnapshot),
       boot: bootCurrentSelfShadow
     })
+  });
+  const currentSelfContextDiagnostics = Object.freeze({
+    mode: 'read-only',
+    scope: 'local-responder-continuity-only',
+    writeEnabled: false,
+    read: () => readCurrentSelfContext()
   });
 
   // Read-only diagnostics/compatibility bridge. Secrets and canonical user memories are never exposed here.
@@ -146,6 +157,12 @@ try{
     },
     PCAICurrentSelfShadow: {
       value: currentSelfShadowDiagnostics,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAICurrentSelfContext: {
+      value: currentSelfContextDiagnostics,
       writable: false,
       configurable: false,
       enumerable: false
