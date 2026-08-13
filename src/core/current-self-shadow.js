@@ -66,11 +66,15 @@ export function createCurrentSelfShadowEngine({
   function previewSleep({
     commitId,
     turns = [],
+    pendingMind,
     reconstructedAt = clock()
   }){
     const id = cleanText(commitId);
     if(!id) throw new TypeError('shadow sleep requires commitId');
     if(!Array.isArray(turns)) throw new TypeError('shadow sleep turns must be an array');
+    if(pendingMind !== undefined && !Array.isArray(pendingMind)){
+      throw new TypeError('shadow sleep pendingMind must be an array when provided');
+    }
 
     const userTurns = turns.filter(turn => turn?.role === 'user');
     const assistantTurns = turns.filter(turn => turn?.role === 'assistant');
@@ -96,6 +100,7 @@ export function createCurrentSelfShadowEngine({
       relationshipStance: {
         currentConcern: topics[0] ? `直近の共有話題: ${topics[0]}` : current.relationshipStance.currentConcern
       },
+      pendingMind,
       growthDelta: {}
     });
 
@@ -110,7 +115,8 @@ export function createCurrentSelfShadowEngine({
         turnCount: turns.length,
         userTurnCount: userTurns.length,
         assistantTurnCount: assistantTurns.length,
-        observedTopicCount: topics.length
+        observedTopicCount: topics.length,
+        carriedPendingCount: Array.isArray(pendingMind) ? pendingMind.length : current.pendingMind.length
       },
       candidate
     });
