@@ -41,6 +41,23 @@ assert.match(responder.reply({ message: 'ありがとう' }), /こちらこそ/)
 assert.match(responder.reply({ message: '34P' }), /大事なページ/);
 assert.match(responder.reply({ message: '夕焼けが綺麗' }), /空の色/);
 
+// Current Self can affect only explicit continuity questions.
+const currentSelf = Object.freeze({
+  available: true,
+  hasContinuity: true,
+  generation: 3,
+  primaryConcern: 'PCAIの自己継続',
+  relationshipDistance: 'close',
+  pendingCount: 1,
+  daypart: 'day'
+});
+const continuityReply = responder.reply({ message: '前の自分の続きなの？', currentSelf });
+assert.match(continuityReply, /前の私の続き/);
+assert.match(continuityReply, /PCAIの自己継続/);
+assert.match(responder.reply({ message: '誕生日は？', currentSelf }), /7月7日/, 'Current Self must not alter unrelated replies');
+assert.doesNotMatch(responder.reply({ message: '今日は不思議な日だった', currentSelf, night: false }), /前の私の続き/, 'generic replies must ignore Current Self');
+assert.doesNotMatch(responder.reply({ message: '前の自分の続きなの？', currentSelf: { ...currentSelf, hasContinuity: false } }), /前の私の続き/, 'continuity must not be invented when unavailable');
+
 // Memory recall must not invent missing memories.
 const memory = { text: 'ユーザーは地図が好き' };
 assert.match(responder.reply({ message: '覚えてる？', relevantMemory: memory, usableMemoryCount: 1 }), /地図が好き/);
