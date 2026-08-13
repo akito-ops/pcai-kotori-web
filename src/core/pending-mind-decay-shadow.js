@@ -13,7 +13,7 @@ function ageDays(createdAt, now){
   return Math.max(0, (current - created) / DAY_MS);
 }
 
-function lifecycleForAge(days){
+function lifecycleForEffectiveAge(days){
   if(days < 1) return Object.freeze({ state: 'fresh', baseWeight: 1 });
   if(days < 3) return Object.freeze({ state: 'aging', baseWeight: 0.7 });
   if(days < 7) return Object.freeze({ state: 'stale', baseWeight: 0.35 });
@@ -34,17 +34,31 @@ function isCurrentlyRelevant(topic, currentSelf){
   });
 }
 
-export function evaluatePendingMindDecay({ item, currentSelf, now = new Date().toISOString() }){
-  const days = ageDays(item?.createdAt, now);
-  const lifecycle = lifecycleForAge(days);
+export function evaluatePendingMindDecay({
+  item,
+  currentSelf,
+  importance = null,
+  now = new Date().toISOString()
+}){
+  const chronologicalAgeDays = ageDays(item?.createdAt, now);
+  const decayResistance = clamp01(importance?.decayResistance ?? 0);
+  // High-importance memories experience slower effective aging, but time never stops entirely.
+  const ageMultiplier = 1 - decayResistance * 0.8;
+  const effectiveAgeDays = Number.isFinite(chronologicalAgeDays)
+    ? chronologicalAgeDays * ageMultiplier
+    : Infinity;
+  const lifecycle = lifecycleForEffectiveAge(effectiveAgeDays);
   const relevant = isCurrentlyRelevant(item?.topic, currentSelf);
   const relevanceBoost = relevant ? 0.2 : 0;
-  const effectiveWeight = clamp01(lifecycle.baseWeight + relevanceBoost);
+  const importanceFloor = clamp01((importance?.importanceScore ?? 0) * 0.25);
+  const effectiveWeight = clamp01(Math.max(lifecycle.baseWeight, importanceFloor) + relevanceBoost);
 
   return Object.freeze({
     mode: 'shadow',
     itemId: typeof item?.id === 'string' ? item.id : '',
-    ageDays: Number.isFinite(days) ? days : null,
+    ageDays: Number.isFinite(chronologicalAgeDays) ? chronologicalAgeDays : null,
+    effectiveAgeDays: Number.isFinite(effectiveAgeDays) ? effectiveAgeDays : null,
+    decayResistance,
     lifecycle: lifecycle.state,
     currentlyRelevant: relevant,
     effectiveWeight,
@@ -54,9 +68,20 @@ export function evaluatePendingMindDecay({ item, currentSelf, now = new Date().t
   });
 }
 
-export function evaluatePendingMindDecaySet({ pendingMind = [], currentSelf, now = new Date().toISOString() }){
+export function evaluatePendingMindDecaySet({
+  pendingMind = [],
+  currentSelf,
+  importanceAssessments = [],
+  now = new Date().toISOString()
+}){
   const items = Array.isArray(pendingMind) ? pendingMind.slice(0, 7) : [];
-  const evaluations = items.map(item => evaluatePendingMindDecay({ item, currentSelf, now }));
+  const importance = Array.isArray(importanceAssessments) ? importanceAssessments : [];
+  const evaluations = items.map((item, index) => evaluatePendingMindDecay({
+    item,
+    currentSelf,
+    importance: importance[index] || null,
+    now
+  }));
   const effectivePendingCount = Math.min(7, evaluations.reduce((sum, item) => sum + item.effectiveWeight, 0));
 
   return Object.freeze({
@@ -65,6 +90,7 @@ export function evaluatePendingMindDecaySet({ pendingMind = [], currentSelf, now
     pendingCount: items.length,
     effectivePendingCount,
     discardCandidateCount: evaluations.filter(item => item.lifecycle === 'discard_candidate').length,
+    importanceAware: true,
     discardAutomatically: false,
     affectsRuntime: false,
     emitsMessages: false,
