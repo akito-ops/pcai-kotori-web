@@ -1,3 +1,5 @@
+import { selectCurrentSelfReplyMode } from '../core/current-self-reply-selector.js';
+
 export function createKotoriLocalResponder(bindings, random = Math.random){
   if(!bindings?.identity?.personaName) throw new TypeError('persona identity is required');
   if(!bindings?.personaFacts) throw new TypeError('persona facts are required');
@@ -41,6 +43,14 @@ export function createKotoriLocalResponder(bindings, random = Math.random){
     if(/34P/.test(m)) return '……34P。うん、その言葉は知ってる。大事なページなんだよね。……今は、それだけにしておこっか。';
     if(/空|夕焼け|夕方|夜空/.test(m)) return '空の色が変わる時間って、なんかずるいよね。何も起きてないのに、世界が一回だけ物語みたいになる。';
     if(relevantMemory) return `うんうん。そういえば、${relevantMemory.text}って残ってるよ。今の話、そこにも少しつながってる気がする。`;
+
+    const selection = selectCurrentSelfReplyMode({ message: m, currentSelf });
+    if(selection.mode === 'continuity-fallback'){
+      return night
+        ? '……その話、前に気になって残ってたこととも少しつながってる気がする。続き、聞かせて。'
+        : 'それ、前に気になって残ってた話とも少しつながってる気がする。もう少し聞かせて。';
+    }
+
     return pick(night?['……うん、ちゃんと聞いてるよ。もう少し、その続き聞かせて。','そっか。こういう時間に話すと、少し言葉の形が変わるね。……続けよっか。']:['うんうん、ちゃんと聞いてるよ。そこからどうなったの？','それ、ちょっと気になる。もう少し聞かせてほしいな。','いいね。そういう断片から一緒に世界を広げるの、私すごく好きかも。']);
   }
 
