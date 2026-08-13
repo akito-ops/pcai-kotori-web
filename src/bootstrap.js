@@ -15,6 +15,7 @@ import { createCurrentSelfInitiativeContext } from './core/current-self-initiati
 import { createInitiativeShadowEngine } from './core/initiative-shadow.js';
 import { createInitiativeShadowScheduler } from './core/initiative-shadow-scheduler.js';
 import { createPendingMindShadowEngine } from './core/pending-mind-shadow-engine.js';
+import { evaluatePendingMindDecaySet } from './core/pending-mind-decay-shadow.js';
 import { detectRelationalPermission } from './core/relational-permission-shadow.js';
 import { reconsiderPendingMindShadow } from './core/pending-mind-reconsideration-shadow.js';
 
@@ -75,7 +76,18 @@ try{
   const pendingMindShadow = createPendingMindShadowEngine({
     initialPending: Array.isArray(previousSelfSnapshot?.pendingMind) ? previousSelfSnapshot.pendingMind : []
   });
-  const readInitiativeCurrentSelf = () => createCurrentSelfInitiativeContext(currentSelfShadow.inspect().current);
+
+  const readPendingDecay = () => evaluatePendingMindDecaySet({
+    pendingMind: pendingMindShadow.read(),
+    currentSelf: currentSelfShadow.inspect().current,
+    now: new Date().toISOString()
+  });
+  const readInitiativeCurrentSelf = () => {
+    const decay = readPendingDecay();
+    return createCurrentSelfInitiativeContext(currentSelfShadow.inspect().current, {
+      effectivePendingCount: decay.effectivePendingCount
+    });
+  };
   const initiativeShadow = createInitiativeShadowEngine({
     readCurrentSelf: readInitiativeCurrentSelf,
     readEnvironment: () => Object.freeze({
@@ -146,6 +158,13 @@ try{
     emitsMessages:false,
     inspect:() => pendingMindShadow.inspect()
   });
+  const pendingMindDecayDiagnostics = Object.freeze({
+    mode:'shadow',
+    deletesAutomatically:false,
+    affectsRuntime:false,
+    emitsMessages:false,
+    inspect:() => readPendingDecay()
+  });
 
   Object.defineProperties(window, {
     PCAIRuntime:{ value:runtime, writable:false, configurable:false, enumerable:false },
@@ -158,7 +177,8 @@ try{
     PCAICurrentSelfShadow:{ value:currentSelfShadowDiagnostics, writable:false, configurable:false, enumerable:false },
     PCAICurrentSelfContext:{ value:currentSelfContextDiagnostics, writable:false, configurable:false, enumerable:false },
     PCAIInitiativeShadow:{ value:initiativeShadowDiagnostics, writable:false, configurable:false, enumerable:false },
-    PCAIPendingMindShadow:{ value:pendingMindShadowDiagnostics, writable:false, configurable:false, enumerable:false }
+    PCAIPendingMindShadow:{ value:pendingMindShadowDiagnostics, writable:false, configurable:false, enumerable:false },
+    PCAIPendingMindDecayShadow:{ value:pendingMindDecayDiagnostics, writable:false, configurable:false, enumerable:false }
   });
 
   await import('../app.js');
