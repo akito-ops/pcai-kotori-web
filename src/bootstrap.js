@@ -16,6 +16,7 @@ import { createInitiativeShadowEngine } from './core/initiative-shadow.js';
 import { createInitiativeShadowScheduler } from './core/initiative-shadow-scheduler.js';
 import { createPendingMindShadowEngine } from './core/pending-mind-shadow-engine.js';
 import { evaluatePendingMindDecaySet } from './core/pending-mind-decay-shadow.js';
+import { assessLongTermMemoryImportance, assessPendingMindImportance } from './core/memory-importance-shadow.js';
 import { detectRelationalPermission } from './core/relational-permission-shadow.js';
 import { reconsiderPendingMindShadow } from './core/pending-mind-reconsideration-shadow.js';
 
@@ -77,9 +78,25 @@ try{
     initialPending: Array.isArray(previousSelfSnapshot?.pendingMind) ? previousSelfSnapshot.pendingMind : []
   });
 
+  const readCanonicalLongTerm = () => {
+    const state = parseCanonicalState(canonicalMemoryAdapter.read());
+    return state?.longTerm && typeof state.longTerm === 'object'
+      ? state.longTerm
+      : Object.freeze({ episodic:[], semantic:[], relationship:[], procedural:[] });
+  };
+  const readLongTermImportance = () => assessLongTermMemoryImportance({
+    longTerm: readCanonicalLongTerm(),
+    currentSelf: currentSelfShadow.inspect().current
+  });
+  const readPendingImportance = () => assessPendingMindImportance({
+    pendingMind: pendingMindShadow.read(),
+    longTerm: readCanonicalLongTerm(),
+    currentSelf: currentSelfShadow.inspect().current
+  });
   const readPendingDecay = () => evaluatePendingMindDecaySet({
     pendingMind: pendingMindShadow.read(),
     currentSelf: currentSelfShadow.inspect().current,
+    importanceAssessments: readPendingImportance(),
     now: new Date().toISOString()
   });
   const readInitiativeCurrentSelf = () => {
@@ -158,8 +175,19 @@ try{
     emitsMessages:false,
     inspect:() => pendingMindShadow.inspect()
   });
+  const memoryImportanceShadowDiagnostics = Object.freeze({
+    mode:'shadow',
+    writesCanonicalMemory:false,
+    affectsRuntime:false,
+    emitsMessages:false,
+    inspect:() => Object.freeze({
+      longTerm: readLongTermImportance(),
+      pending: readPendingImportance()
+    })
+  });
   const pendingMindDecayDiagnostics = Object.freeze({
     mode:'shadow',
+    importanceAware:true,
     deletesAutomatically:false,
     affectsRuntime:false,
     emitsMessages:false,
@@ -178,6 +206,7 @@ try{
     PCAICurrentSelfContext:{ value:currentSelfContextDiagnostics, writable:false, configurable:false, enumerable:false },
     PCAIInitiativeShadow:{ value:initiativeShadowDiagnostics, writable:false, configurable:false, enumerable:false },
     PCAIPendingMindShadow:{ value:pendingMindShadowDiagnostics, writable:false, configurable:false, enumerable:false },
+    PCAIMemoryImportanceShadow:{ value:memoryImportanceShadowDiagnostics, writable:false, configurable:false, enumerable:false },
     PCAIPendingMindDecayShadow:{ value:pendingMindDecayDiagnostics, writable:false, configurable:false, enumerable:false }
   });
 
