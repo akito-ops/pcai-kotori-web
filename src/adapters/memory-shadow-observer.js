@@ -36,7 +36,9 @@ export function createShadowObservingMemoryAdapter({
   memoryAdapter,
   shadowEngine,
   shadowStore = null,
-  onUserTurn = null
+  onUserTurn = null,
+  readPendingForSleep = null,
+  onPendingCarriedOver = null
 }){
   if(!memoryAdapter || typeof memoryAdapter.read !== 'function' || typeof memoryAdapter.write !== 'function'){
     throw new TypeError('canonical memory adapter with read()/write() is required');
@@ -49,6 +51,12 @@ export function createShadowObservingMemoryAdapter({
   }
   if(onUserTurn !== null && typeof onUserTurn !== 'function'){
     throw new TypeError('onUserTurn must be a function when provided');
+  }
+  if(readPendingForSleep !== null && typeof readPendingForSleep !== 'function'){
+    throw new TypeError('readPendingForSleep must be a function when provided');
+  }
+  if(onPendingCarriedOver !== null && typeof onPendingCarriedOver !== 'function'){
+    throw new TypeError('onPendingCarriedOver must be a function when provided');
   }
 
   let previousSerialized = memoryAdapter.read();
@@ -69,12 +77,28 @@ export function createShadowObservingMemoryAdapter({
     }
 
     if(isSleepTransition(before, after)){
+      let pendingMind;
+      if(readPendingForSleep){
+        try{
+          const exported = readPendingForSleep();
+          pendingMind = Array.isArray(exported) ? exported : [];
+        }catch(error){
+          console.warn('PCAI Pending Mind shadow export failed', error);
+          pendingMind = [];
+        }
+      }
+
       const report = shadowEngine.previewSleep({
         commitId: after.head,
         turns: before.shortTerm,
+        pendingMind,
         reconstructedAt: after.commits?.at(-1)?.at || new Date().toISOString()
       });
       if(shadowStore) shadowStore.write(report.candidate);
+      if(onPendingCarriedOver){
+        try{ onPendingCarriedOver(Object.freeze({ count: report.candidate.pendingMind.length })); }
+        catch(error){ console.warn('PCAI Pending Mind post-sleep cleanup failed', error); }
+      }
       return;
     }
 
