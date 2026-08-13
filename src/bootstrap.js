@@ -3,11 +3,13 @@ import { createRuntimeBindings } from './core/runtime-bindings.js';
 import { assertLegacyCompatibility } from './core/legacy-contract.js';
 import { createModelHttpAdapter } from './adapters/model-http.js';
 import { createLocalStorageMemoryAdapter } from './adapters/memory-local-storage.js';
+import { createCurrentSelfShadowStore } from './adapters/current-self-shadow-store.js';
 import { createShadowObservingMemoryAdapter } from './adapters/memory-shadow-observer.js';
 import { createRuntimeBridge } from './core/runtime-bridge.js';
 import { createLocalResponderForPersona } from './responders/responder-factory.js';
 import { createLocalReplyRouter } from './core/local-reply-router.js';
 import { createCurrentSelfShadowEngine } from './core/current-self-shadow.js';
+import { createBootCurrentSelfShadow } from './core/current-self-boot-shadow.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -44,6 +46,14 @@ function assertSafeRuntime(profile){
   }
 }
 
+function currentJstHour(){
+  return Number(new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Tokyo',
+    hour: '2-digit',
+    hour12: false
+  }));
+}
+
 try{
   assertSafeRuntime(runtime);
   const bindings = createRuntimeBindings(runtime);
@@ -53,12 +63,24 @@ try{
     storageKey: bindings.storageKey,
     storage: window.localStorage
   });
+  const currentSelfShadowStore = createCurrentSelfShadowStore({
+    personaId: bindings.identity.personaId,
+    storage: window.localStorage
+  });
+  const previousSelfSnapshot = currentSelfShadowStore.read();
   const currentSelfShadow = createCurrentSelfShadowEngine({
-    personaId: bindings.identity.personaId
+    personaId: bindings.identity.personaId,
+    initialSelf: previousSelfSnapshot
+  });
+  const bootCurrentSelfShadow = createBootCurrentSelfShadow({
+    snapshot: previousSelfSnapshot,
+    bootedAt: new Date().toISOString(),
+    environment: { hour: currentJstHour() }
   });
   const memoryAdapter = createShadowObservingMemoryAdapter({
     memoryAdapter: canonicalMemoryAdapter,
-    shadowEngine: currentSelfShadow
+    shadowEngine: currentSelfShadow,
+    shadowStore: currentSelfShadowStore
   });
   const bridge = createRuntimeBridge({ bindings, modelAdapter, memoryAdapter });
   const localResponder = createLocalResponderForPersona(bindings);
@@ -68,12 +90,17 @@ try{
   }).reply(context);
   const currentSelfShadowDiagnostics = Object.freeze({
     mode: 'shadow',
-    persisted: false,
+    snapshotPersisted: true,
     affectsRuntime: false,
-    inspect: () => currentSelfShadow.inspect()
+    snapshotStorageKey: currentSelfShadowStore.storageKey,
+    inspect: () => Object.freeze({
+      ...currentSelfShadow.inspect(),
+      snapshotAvailableAtBoot: Boolean(previousSelfSnapshot),
+      boot: bootCurrentSelfShadow
+    })
   });
 
-  // Read-only diagnostics/compatibility bridge. Secrets and user memories are never exposed here.
+  // Read-only diagnostics/compatibility bridge. Secrets and canonical user memories are never exposed here.
   Object.defineProperties(window, {
     PCAIRuntime: {
       value: runtime,
