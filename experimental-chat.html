@@ -1,144 +1,17 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#edf7ff">
-  <meta name="referrer" content="no-referrer">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#edf7ff"><meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://pcai-kotori-backend.siryuuakito.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'">
-  <title>篝火ことり PCAI Experimental Memory</title>
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./prototype-state.css">
+  <title>篝火ことり PCAI Experimental Memory</title><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./prototype-state.css">
 </head>
-<body>
-  <main class="app-shell">
-    <header class="hero">
-      <div class="avatar"><img src="./kotori_master.png" alt="篝火ことり 公式ビジュアル"></div>
-      <div class="hero-copy">
-        <p class="kicker">PCAI EXPERIMENTAL MEMORY v1</p>
-        <h1>篝火ことり</h1>
-        <p class="tagline">新しい記憶重要度とRecallを、従来方式へいつでも戻せる試験ページ。</p>
-        <div class="badges">
-          <span>正本記憶は共通</span>
-          <span id="mode-badge">昼のことり</span>
-          <span id="llm-status">LLM未接続</span>
-          <span id="experimental-memory-badge">実験記憶 OFF</span>
-        </div>
-      </div>
-      <button id="about-btn" class="icon-btn" type="button" title="この試作品について">?</button>
-    </header>
-
-    <section class="grid">
-      <section class="chat-card">
-        <div id="chat" class="chat" aria-live="polite"></div>
-        <form id="chat-form" class="composer">
-          <textarea id="message" rows="2" maxlength="800" placeholder="ことりに話しかける…（Enterで送信 / Shift+Enterで改行）" aria-label="メッセージ"></textarea>
-          <button id="send-btn" type="submit" class="send">送信</button>
-        </form>
-        <div class="quick-actions">
-          <button type="button" data-prompt="こんことー！">こんことー！</button>
-          <button type="button" data-prompt="今日のこと、覚えてる？">記憶を聞く</button>
-          <button type="button" data-prompt="ちょっと相談してもいい？">相談する</button>
-          <button type="button" data-prompt="今、話したいことある？">💭 話したいことある？</button>
-          <button id="experimental-memory-btn" type="button" aria-pressed="false">🧠 Experimental Memory OFF</button>
-          <button id="llm-btn" type="button">🔐 AI接続</button>
-          <button id="sleep-btn" class="sleep" type="button">🌙 睡眠処理</button>
-        </div>
-      </section>
-
-      <aside class="memory-card">
-        <div class="panel-head"><div><p class="kicker">PERSONAL MEMORY</p><h2>人格リポジトリ</h2></div><strong id="head-id">—</strong></div>
-        <div class="stats">
-          <div><span>短期記憶</span><strong id="short-count">0</strong></div>
-          <div><span>長期記憶</span><strong id="long-count">0</strong></div>
-          <div><span>commit</span><strong id="commit-count">0</strong></div>
-        </div>
-        <section><h3>最近の長期記憶</h3><ul id="memories" class="memory-list"></ul></section>
-        <section><h3>最近のcommit</h3><ul id="commits" class="commit-list"></ul></section>
-        <div class="memory-actions">
-          <button id="voice-btn" type="button">🔊 読み上げ ON</button>
-          <button id="export-btn" type="button">記憶を書き出す</button>
-          <label class="file-btn">記憶を読み込む<input id="import-file" type="file" accept="application/json"></label>
-          <button id="reset-btn" class="danger" type="button">記憶を初期化</button>
-        </div>
-        <p class="privacy">Experimental Memoryは通常の関連記憶検索だけを差し替えます。昨日・先週・前回などの時間指定Recall、記憶保存形式、睡眠処理、自発発話は変更しません。OFFで従来方式へ戻ります。</p>
-      </aside>
-    </section>
-
-    <section class="memory-card prototype-state-card" aria-label="PCAI内部状態の安全な観測パネル">
-      <div class="panel-head">
-        <div><p class="kicker">PCAI OBSERVABLE STATE</p><h2>いまの「ことり」</h2></div>
-        <strong>診断のみ</strong>
-      </div>
-      <div class="prototype-state-grid">
-        <section>
-          <h3>Continuity / Current Self</h3>
-          <dl class="state-dl">
-            <div><dt>継続世代</dt><dd id="state-continuity">—</dd></div>
-            <div><dt>前commit</dt><dd id="state-previous-commit">—</dd></div>
-            <div><dt>関係距離</dt><dd id="state-relationship">—</dd></div>
-          </dl>
-          <p id="state-self-summary" class="state-summary">—</p>
-          <p class="state-subhead">Active Concern <strong id="state-active-count">0</strong></p>
-          <ul id="state-active-concerns" class="memory-list state-list"></ul>
-        </section>
-        <section>
-          <h3>Pending Mind</h3>
-          <p class="state-subhead">保留中 <strong id="state-pending-count">0</strong></p>
-          <ul id="state-pending-list" class="memory-list state-list"></ul>
-          <p class="privacy">「言おうとした／保留した」という構造化状態だけを表示します。内部推論は保存・表示しません。</p>
-        </section>
-        <section>
-          <h3>Initiative Shadow</h3>
-          <dl class="state-dl">
-            <div><dt>判定</dt><dd id="state-initiative-action">—</dd></div>
-            <div><dt>理由</dt><dd id="state-initiative-reason">—</dd></div>
-            <div><dt>final</dt><dd id="state-initiative-final">—</dd></div>
-            <div><dt>実発話</dt><dd id="state-initiative-emission">—</dd></div>
-          </dl>
-        </section>
-        <section>
-          <h3>Safety / Experimental</h3>
-          <dl class="state-dl">
-            <div><dt>Experimental Memory</dt><dd id="state-experimental-memory">OFF</dd></div>
-            <div><dt>Autonomous Actions</dt><dd id="state-autonomy">OFF</dd></div>
-          </dl>
-          <p class="privacy">このパネルは観測専用です。状態変更・自発発話・ツール実行の操作はありません。</p>
-        </section>
-      </div>
-    </section>
-  </main>
-
-  <dialog id="llm-dialog" class="llm-dialog">
-    <form method="dialog"><button class="close" aria-label="閉じる">×</button></form>
-    <h2>無料AIへ接続</h2>
-    <p>Cloudflareに登録した本人用 <code>PCAI_ACCESS_TOKEN</code> の値を入力してください。</p>
-    <p class="privacy"><strong>この値はページ内メモリだけに保持し、localStorage・GitHub・会話記憶へ保存しません。</strong></p>
-    <label class="token-label" for="llm-token-input">本人用アクセス鍵</label>
-    <input id="llm-token-input" class="token-input" type="password" autocomplete="off" spellcheck="false">
-    <div class="dialog-actions">
-      <button id="llm-connect-btn" type="button">このページだけ接続</button>
-      <button id="llm-clear-btn" type="button">接続を解除</button>
-    </div>
-  </dialog>
-
-  <dialog id="about-dialog">
-    <form method="dialog"><button class="close" aria-label="閉じる">×</button></form>
-    <h2>Experimental Memory v1</h2>
-    <p>Memory Importance＋Recall Rankingを通常会話へ限定接続した、Project Chobitsの安全試験ページです。</p>
-    <ul>
-      <li>初期値はOFF</li>
-      <li>ON時だけ通常の関連記憶Recallを新方式へ切替</li>
-      <li>時間指定Recallは従来方式を維持</li>
-      <li>関連性が弱い場合は従来候補へフォールバック</li>
-      <li>Current Self / Pending Mind / Initiativeは観測専用</li>
-      <li>Pending Mindの実会話化は、ユーザーが明示的に尋ねた時だけ</li>
-      <li>自動発話・ツール実行は無効</li>
-    </ul>
-  </dialog>
-
-  <script type="module" src="./src/bootstrap-experimental-memory.js?v=0.5.2-exp1"></script>
-  <script type="module" src="./src/experimental-memory-ui.js?v=0.5.2-exp1"></script>
-  <script type="module" src="./src/prototype-state-panel.js?v=0.5.2-exp1"></script>
-</body>
-</html>
+<body><main class="app-shell">
+<header class="hero"><div class="avatar"><img src="./kotori_master.png" alt="篝火ことり 公式ビジュアル"></div><div class="hero-copy"><p class="kicker">PCAI EXPERIMENTAL MEMORY v1</p><h1>篝火ことり</h1><p class="tagline">記憶・継続・保留意図・限定自発性を安全に試すページ。</p><div class="badges"><span>正本記憶は共通</span><span id="mode-badge">昼のことり</span><span id="llm-status">LLM未接続</span><span id="experimental-memory-badge">実験記憶 OFF</span><span id="one-shot-initiative-badge">1回発話 OFF</span></div></div><button id="about-btn" class="icon-btn" type="button">?</button></header>
+<section class="grid"><section class="chat-card"><div id="chat" class="chat" aria-live="polite"></div><form id="chat-form" class="composer"><textarea id="message" rows="2" maxlength="800" placeholder="ことりに話しかける…" aria-label="メッセージ"></textarea><button id="send-btn" type="submit" class="send">送信</button></form><div class="quick-actions"><button type="button" data-prompt="こんことー！">こんことー！</button><button type="button" data-prompt="今日のこと、覚えてる？">記憶を聞く</button><button type="button" data-prompt="ちょっと相談してもいい？">相談する</button><button type="button" data-prompt="今、話したいことある？">💭 話したいことある？</button><button id="experimental-memory-btn" type="button" aria-pressed="false">🧠 Experimental Memory OFF</button><button id="one-shot-initiative-btn" type="button" aria-pressed="false">💬 自発発話を1回だけ許可</button><button id="llm-btn" type="button">🔐 AI接続</button><button id="sleep-btn" class="sleep" type="button">🌙 睡眠処理</button></div></section>
+<aside class="memory-card"><div class="panel-head"><div><p class="kicker">PERSONAL MEMORY</p><h2>人格リポジトリ</h2></div><strong id="head-id">—</strong></div><div class="stats"><div><span>短期記憶</span><strong id="short-count">0</strong></div><div><span>長期記憶</span><strong id="long-count">0</strong></div><div><span>commit</span><strong id="commit-count">0</strong></div></div><section><h3>最近の長期記憶</h3><ul id="memories" class="memory-list"></ul></section><section><h3>最近のcommit</h3><ul id="commits" class="commit-list"></ul></section><div class="memory-actions"><button id="voice-btn" type="button">🔊 読み上げ ON</button><button id="export-btn" type="button">記憶を書き出す</button><label class="file-btn">記憶を読み込む<input id="import-file" type="file" accept="application/json"></label><button id="reset-btn" class="danger" type="button">記憶を初期化</button></div><p class="privacy">1回発話許可はセッション内・最大5分・最大1回です。LLMとツールは呼びません。</p></aside></section>
+<section class="memory-card prototype-state-card"><div class="panel-head"><div><p class="kicker">PCAI OBSERVABLE STATE</p><h2>いまの「ことり」</h2></div><strong>診断のみ</strong></div><div class="prototype-state-grid"><section><h3>Continuity / Current Self</h3><dl class="state-dl"><div><dt>継続世代</dt><dd id="state-continuity">—</dd></div><div><dt>前commit</dt><dd id="state-previous-commit">—</dd></div><div><dt>関係距離</dt><dd id="state-relationship">—</dd></div></dl><p id="state-self-summary" class="state-summary">—</p><p class="state-subhead">Active Concern <strong id="state-active-count">0</strong></p><ul id="state-active-concerns" class="memory-list state-list"></ul></section><section><h3>Pending Mind</h3><p class="state-subhead">保留中 <strong id="state-pending-count">0</strong></p><ul id="state-pending-list" class="memory-list state-list"></ul><p class="privacy">構造化状態だけを表示します。</p></section><section><h3>Initiative Shadow</h3><dl class="state-dl"><div><dt>判定</dt><dd id="state-initiative-action">—</dd></div><div><dt>理由</dt><dd id="state-initiative-reason">—</dd></div><div><dt>final</dt><dd id="state-initiative-final">—</dd></div><div><dt>通常の実発話</dt><dd id="state-initiative-emission">—</dd></div></dl></section><section><h3>Safety / Experimental</h3><dl class="state-dl"><div><dt>Experimental Memory</dt><dd id="state-experimental-memory">OFF</dd></div><div><dt>Autonomous Actions</dt><dd id="state-autonomy">OFF</dd></div></dl><p class="privacy">自動ツール実行はありません。</p></section></div></section>
+</main>
+<dialog id="llm-dialog" class="llm-dialog"><form method="dialog"><button class="close">×</button></form><h2>無料AIへ接続</h2><p>Cloudflareに登録した本人用 <code>PCAI_ACCESS_TOKEN</code> を入力してください。</p><label class="token-label" for="llm-token-input">本人用アクセス鍵</label><input id="llm-token-input" class="token-input" type="password" autocomplete="off"><div class="dialog-actions"><button id="llm-connect-btn" type="button">このページだけ接続</button><button id="llm-clear-btn" type="button">接続を解除</button></div></dialog>
+<dialog id="about-dialog"><form method="dialog"><button class="close">×</button></form><h2>PCAI Experimental Prototype</h2><ul><li>Experimental MemoryはOFFへ即時復帰可能</li><li>Pending Mind開示は明示質問時のみ</li><li>1回自発発話はユーザーが都度opt-in</li><li>許可は保存せず、最大5分・最大1回</li><li>自発発話でLLM・ツールは呼ばない</li></ul></dialog>
+<script type="module" src="./src/bootstrap-experimental-memory.js?v=0.5.3-exp1"></script><script type="module" src="./src/experimental-memory-ui.js?v=0.5.3-exp1"></script><script type="module" src="./src/prototype-state-panel.js?v=0.5.3-exp1"></script><script type="module" src="./src/one-shot-initiative-ui.js?v=0.5.3-exp1"></script>
+</body></html>
