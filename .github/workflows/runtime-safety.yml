@@ -12,6 +12,7 @@ on:
       - feature/initiative-shadow-periodic
       - feature/pending-mind-permission-shadow
       - feature/pending-mind-sleep-carryover
+      - feature/pending-mind-decay-shadow
   pull_request:
     branches:
       - main
