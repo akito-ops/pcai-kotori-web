@@ -16,6 +16,7 @@ import { createInitiativeShadowEngine } from './core/initiative-shadow.js';
 import { createInitiativeShadowScheduler } from './core/initiative-shadow-scheduler.js';
 import { createPendingMindShadowEngine } from './core/pending-mind-shadow-engine.js';
 import { requestPendingMindDisclosure } from './core/pending-mind-manual-disclosure.js';
+import { createOneShotInitiativeOptIn } from './core/one-shot-initiative-optin.js';
 import { evaluatePendingMindDecaySet } from './core/pending-mind-decay-shadow.js';
 import { assessLongTermMemoryImportance, assessPendingMindImportance } from './core/memory-importance-shadow.js';
 import { detectRelationalPermission } from './core/relational-permission-shadow.js';
@@ -78,6 +79,8 @@ try{
   const readInitiativeCurrentSelf=()=>createCurrentSelfInitiativeContext(currentSelfShadow.inspect().current,{effectivePendingCount:readPendingDecay().effectivePendingCount});
   const initiativeShadow=createInitiativeShadowEngine({readCurrentSelf:readInitiativeCurrentSelf,readEnvironment:()=>Object.freeze({visible:document.visibilityState!=='hidden',idleSeconds:idleSecondsFromCanonical(canonicalMemoryAdapter),hour:currentJstHour()})});
   const experimentalMemory=createExperimentalMemoryController({storage:window.localStorage,readCurrentSelf:()=>currentSelfShadow.inspect().current});
+  const oneShotInitiative=createOneShotInitiativeOptIn();
+  const oneShotListeners=new Set();
 
   function manualPendingReply(message){
     if(!isExplicitPendingDisclosureRequest(message)) return null;
@@ -120,7 +123,17 @@ try{
   };
 
   const bootInitiativeEvaluation=initiativeShadow.evaluate();
-  const initiativeShadowScheduler=createInitiativeShadowScheduler({engine:initiativeShadow,intervalMs:60000,onEvaluation:evaluation=>pendingMindShadow.observeInitiative({evaluation,currentSelf:currentSelfShadow.inspect().current})});
+  const initiativeShadowScheduler=createInitiativeShadowScheduler({
+    engine:initiativeShadow,
+    intervalMs:60000,
+    onEvaluation:evaluation=>{
+      pendingMindShadow.observeInitiative({evaluation,currentSelf:currentSelfShadow.inspect().current});
+      const emission=oneShotInitiative.consider({evaluation,pendingMind:pendingMindShadow.read(),visible:document.visibilityState!=='hidden'});
+      if(emission.emit){
+        for(const listener of oneShotListeners){try{listener(emission);}catch(error){console.warn('PCAI one-shot initiative listener failed',error);}}
+      }
+    }
+  });
   initiativeShadowScheduler.start({initialEvaluation:bootInitiativeEvaluation});
 
   const experimentalDiagnostics=Object.freeze({
@@ -129,6 +142,16 @@ try{
     rank:({query='',limit=6}={})=>experimentalMemory.rank({longTerm:readCanonicalLongTerm(),query,limit}),
     autonomousActionsEnabled:false,
     affectsTemporalRecall:false
+  });
+  const oneShotDiagnostics=Object.freeze({
+    inspect:()=>oneShotInitiative.inspect(),
+    arm:()=>oneShotInitiative.arm(),
+    disarm:()=>oneShotInitiative.disarm(),
+    subscribe:listener=>{if(typeof listener!=='function')return()=>{};oneShotListeners.add(listener);return()=>oneShotListeners.delete(listener);},
+    callsModel:false,
+    executesTools:false,
+    persistsPermission:false,
+    maxEmissions:1
   });
 
   Object.defineProperties(window,{
@@ -140,6 +163,7 @@ try{
     PCAILocalResponder:{value:localResponder,writable:false,configurable:false,enumerable:false},
     PCAILocalReply:{value:localReply,writable:false,configurable:false,enumerable:false},
     PCAIExperimentalMemory:{value:experimentalDiagnostics,writable:false,configurable:false,enumerable:false},
+    PCAIOneShotInitiative:{value:oneShotDiagnostics,writable:false,configurable:false,enumerable:false},
     PCAICurrentSelfShadow:{value:Object.freeze({mode:'shadow',snapshotPersisted:true,affectsRuntime:false,inspect:()=>Object.freeze({...currentSelfShadow.inspect(),boot:bootCurrentSelfShadow})}),writable:false,configurable:false,enumerable:false},
     PCAICurrentSelfContext:{value:Object.freeze({mode:'read-only',writeEnabled:false,read:()=>readCurrentSelfContext()}),writable:false,configurable:false,enumerable:false},
     PCAIInitiativeShadow:{value:Object.freeze({mode:'shadow',affectsRuntime:false,autonomousActionsEnabled:false,emitsMessages:false,inspect:()=>Object.freeze({...initiativeShadow.inspect(),scheduler:initiativeShadowScheduler.inspect()})}),writable:false,configurable:false,enumerable:false},
