@@ -11,6 +11,8 @@ import { createLocalReplyRouter } from './core/local-reply-router.js';
 import { createCurrentSelfShadowEngine } from './core/current-self-shadow.js';
 import { createBootCurrentSelfShadow } from './core/current-self-boot-shadow.js';
 import { createCurrentSelfResponderContext } from './core/current-self-responder-context.js';
+import { createCurrentSelfInitiativeContext } from './core/current-self-initiative-context.js';
+import { createInitiativeShadowEngine } from './core/initiative-shadow.js';
 
 function assertSafeRuntime(profile){
   const failures = [];
@@ -89,6 +91,21 @@ try{
     bootReport: bootCurrentSelfShadow,
     shadowInspection: currentSelfShadow.inspect()
   });
+  const readInitiativeCurrentSelf = () => createCurrentSelfInitiativeContext(
+    currentSelfShadow.inspect().current
+  );
+  const initiativeShadow = createInitiativeShadowEngine({
+    readCurrentSelf: readInitiativeCurrentSelf,
+    readEnvironment: () => Object.freeze({
+      visible: typeof document.visibilityState === 'string'
+        ? document.visibilityState !== 'hidden'
+        : true,
+      idleSeconds: 0,
+      hour: currentJstHour()
+    })
+  });
+  initiativeShadow.evaluate();
+
   const localReply = (context, legacyReply) => createLocalReplyRouter({
     responder: localResponder,
     legacyReply
@@ -109,6 +126,14 @@ try{
     scope: 'local-responder-continuity-only',
     writeEnabled: false,
     read: () => readCurrentSelfContext()
+  });
+  const initiativeShadowDiagnostics = Object.freeze({
+    mode: 'shadow',
+    evaluationCadence: 'boot-only',
+    affectsRuntime: false,
+    autonomousActionsEnabled: false,
+    emitsMessages: false,
+    inspect: () => initiativeShadow.inspect()
   });
 
   // Read-only diagnostics/compatibility bridge. Secrets and canonical user memories are never exposed here.
@@ -163,6 +188,12 @@ try{
     },
     PCAICurrentSelfContext: {
       value: currentSelfContextDiagnostics,
+      writable: false,
+      configurable: false,
+      enumerable: false
+    },
+    PCAIInitiativeShadow: {
+      value: initiativeShadowDiagnostics,
       writable: false,
       configurable: false,
       enumerable: false
