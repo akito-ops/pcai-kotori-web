@@ -41,37 +41,56 @@ assert.match(responder.reply({ message: 'ありがとう' }), /こちらこそ/)
 assert.match(responder.reply({ message: '34P' }), /大事なページ/);
 assert.match(responder.reply({ message: '夕焼けが綺麗' }), /空の色/);
 
-// Current Self can affect only explicit continuity questions.
 const currentSelf = Object.freeze({
   available: true,
   hasContinuity: true,
   generation: 3,
-  primaryConcern: 'PCAIの自己継続',
+  primaryConcern: 'Current Selfの自己継続と睡眠再構成について詰めたい',
   relationshipDistance: 'close',
   pendingCount: 1,
   daypart: 'day'
 });
+
+// Explicit continuity questions may use Current Self directly.
 const continuityReply = responder.reply({ message: '前の自分の続きなの？', currentSelf });
 assert.match(continuityReply, /前の私の続き/);
-assert.match(continuityReply, /PCAIの自己継続/);
-assert.match(responder.reply({ message: '誕生日は？', currentSelf }), /7月7日/, 'Current Self must not alter unrelated replies');
-assert.doesNotMatch(responder.reply({ message: '今日は不思議な日だった', currentSelf, night: false }), /前の私の続き/, 'generic replies must ignore Current Self');
-assert.doesNotMatch(responder.reply({ message: '前の自分の続きなの？', currentSelf: { ...currentSelf, hasContinuity: false } }), /前の私の続き/, 'continuity must not be invented when unavailable');
+assert.match(continuityReply, /Current Self/);
+
+// Existing explicit branches always outrank Current Self selection.
+assert.match(responder.reply({ message: '誕生日は？', currentSelf }), /7月7日/);
+assert.match(responder.reply({ message: '相談がある', currentSelf }), /一緒に見てみよっか/);
+
+// Only strongly related generic fallback may surface continuity.
+assert.match(responder.reply({
+  message: '睡眠でCurrent Selfを再構成する仕組みをもう少し詰めたい',
+  currentSelf,
+  night: false
+}), /前に気になって残ってた話/);
+assert.doesNotMatch(responder.reply({
+  message: '今日はカレーを食べたよ',
+  currentSelf,
+  night: false
+}), /前に気になって残ってた話/, 'unrelated generic conversation must stay legacy');
+assert.doesNotMatch(responder.reply({
+  message: '前の自分の続きなの？',
+  currentSelf: { ...currentSelf, hasContinuity: false }
+}), /前の私の続き/, 'continuity must not be invented when unavailable');
 
 // Memory recall must not invent missing memories.
 const memory = { text: 'ユーザーは地図が好き' };
-assert.match(responder.reply({ message: '覚えてる？', relevantMemory: memory, usableMemoryCount: 1 }), /地図が好き/);
-assert.match(responder.reply({ message: '覚えてる？', relevantMemory: null, usableMemoryCount: 0 }), /空っぽ/);
+assert.match(responder.reply({ message: '覚えてる？', relevantMemory: memory, usableMemoryCount: 1, currentSelf }), /地図が好き/);
+assert.match(responder.reply({ message: '覚えてる？', relevantMemory: null, usableMemoryCount: 0, currentSelf }), /空っぽ/);
 
 const intent = { label: '昨日' };
 assert.match(responder.reply({
   message: '昨日何話した？',
   intent,
-  intentHits: [{ summary: '旅行の話' }]
+  intentHits: [{ summary: '旅行の話' }],
+  currentSelf
 }), /旅行の話/);
-assert.match(responder.reply({ message: '昨日何話した？', intent, intentHits: [] }), /覚えてるふりはしない/);
+assert.match(responder.reply({ message: '昨日何話した？', intent, intentHits: [], currentSelf }), /覚えてるふりはしない/);
 
-// Generic fallback remains deterministic for tests.
+// Generic fallback remains deterministic without Current Self relevance.
 assert.match(responder.reply({ message: '今日は不思議な日だった', night: false }), /ちゃんと聞いてる/);
 assert.match(responder.reply({ message: '今日は不思議な日だった', night: true }), /ちゃんと聞いてる/);
 
