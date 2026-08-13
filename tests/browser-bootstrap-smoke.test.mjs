@@ -63,8 +63,16 @@ assert.equal(windowStub.PCAILocalResponder.personaId, 'kagaribi-kotori');
 assert.equal(typeof windowStub.PCAIBridge.chat, 'function');
 assert.equal(typeof windowStub.PCAIBridge.memory.read, 'function');
 assert.equal(typeof windowStub.PCAILocalReply, 'function');
+assert.equal(typeof windowStub.PCAICurrentSelfShadow.inspect, 'function');
+assert.equal(windowStub.PCAICurrentSelfShadow.affectsRuntime, false);
+assert.equal(windowStub.PCAICurrentSelfShadow.snapshotPersisted, true);
+assert.equal(windowStub.PCAICurrentSelfShadow.snapshotStorageKey, 'pcai.shadow.current-self.v1.kagaribi-kotori');
+assert.notEqual(windowStub.PCAICurrentSelfShadow.snapshotStorageKey, windowStub.PCAIBindings.storageKey);
+assert.equal(windowStub.PCAICurrentSelfShadow.previewSleep, undefined, 'shadow mutation API must not be exposed');
+assert.equal(windowStub.PCAICurrentSelfShadow.inspect().snapshotAvailableAtBoot, false);
+assert.equal(windowStub.PCAICurrentSelfShadow.inspect().boot.available, false);
 
-for(const property of ['PCAIRuntime','PCAIBindings','PCAIBridge','PCAILocalResponder','PCAILocalReply']){
+for(const property of ['PCAIRuntime','PCAIBindings','PCAIBridge','PCAILocalResponder','PCAILocalReply','PCAICurrentSelfShadow']){
   const descriptor = Object.getOwnPropertyDescriptor(windowStub, property);
   assert.equal(descriptor?.writable, false, `${property} must stay read-only`);
   assert.equal(descriptor?.configurable, false, `${property} must not be replaceable`);
@@ -90,10 +98,28 @@ renderedText = chat.children.map(node => node.textContent).join('\n');
 assert.match(renderedText, /誕生日は？/);
 assert.match(renderedText, /7月7日/);
 
-const stored = JSON.parse(storageData.get('pcai.kagaribi-kotori.web.v02'));
+const canonicalKey = 'pcai.kagaribi-kotori.web.v02';
+const shadowKey = 'pcai.shadow.current-self.v1.kagaribi-kotori';
+let stored = JSON.parse(storageData.get(canonicalKey));
 assert.equal(stored.shortTerm.at(-2)?.role, 'user');
 assert.equal(stored.shortTerm.at(-2)?.content, '誕生日は？');
 assert.equal(stored.shortTerm.at(-1)?.role, 'assistant');
 assert.match(stored.shortTerm.at(-1)?.content || '', /7月7日/);
+assert.equal(storageData.has(shadowKey), false, 'ordinary conversation must not persist Current Self snapshot');
+
+const sleep = elementFor('sleep-btn').listeners.get('click');
+assert.equal(typeof sleep, 'function', 'sleep handler must be registered');
+sleep({ preventDefault(){} });
+
+stored = JSON.parse(storageData.get(canonicalKey));
+assert.equal(stored.shortTerm.length, 0, 'canonical sleep must still clear short-term memory');
+assert.ok(stored.head, 'canonical sleep must still create a commit');
+assert.equal(storageData.has(shadowKey), true, 'successful sleep must persist isolated Current Self shadow snapshot');
+const snapshot = JSON.parse(storageData.get(shadowKey));
+assert.equal(snapshot.personaId, 'kagaribi-kotori');
+assert.equal(snapshot.continuity.generation, 1);
+assert.equal(snapshot.continuity.previousCommitId, stored.head);
+assert.equal(windowStub.PCAICurrentSelfShadow.inspect().current.continuity.generation, 1);
+assert.equal(windowStub.PCAICurrentSelfShadow.inspect().affectsRuntime, false);
 
 console.log('browser bootstrap smoke: OK');
