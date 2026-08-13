@@ -31,7 +31,7 @@ const shadow = {
     const current = JSON.parse(stored);
     observedAfterCanonicalWrite = current.head === payload.commitId;
     assert.equal(payload.commitId, 'new-head');
-    assert.equal(payload.turns.length, 2);
+    assert.equal(payload.turns.length, 3);
     return { candidate: { personaId: 'kagaribi-kotori', continuity: { generation: 1 } } };
   },
   reset(){ resetCalls += 1; }
