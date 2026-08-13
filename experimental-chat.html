@@ -39,6 +39,7 @@
           <button type="button" data-prompt="こんことー！">こんことー！</button>
           <button type="button" data-prompt="今日のこと、覚えてる？">記憶を聞く</button>
           <button type="button" data-prompt="ちょっと相談してもいい？">相談する</button>
+          <button type="button" data-prompt="今、話したいことある？">💭 話したいことある？</button>
           <button id="experimental-memory-btn" type="button" aria-pressed="false">🧠 Experimental Memory OFF</button>
           <button id="llm-btn" type="button">🔐 AI接続</button>
           <button id="sleep-btn" class="sleep" type="button">🌙 睡眠処理</button>
@@ -131,12 +132,13 @@
       <li>時間指定Recallは従来方式を維持</li>
       <li>関連性が弱い場合は従来候補へフォールバック</li>
       <li>Current Self / Pending Mind / Initiativeは観測専用</li>
-      <li>自発発話・ツール実行は無効</li>
+      <li>Pending Mindの実会話化は、ユーザーが明示的に尋ねた時だけ</li>
+      <li>自動発話・ツール実行は無効</li>
     </ul>
   </dialog>
 
-  <script type="module" src="./src/bootstrap-experimental-memory.js?v=0.5.1-exp1"></script>
-  <script type="module" src="./src/experimental-memory-ui.js?v=0.5.1-exp1"></script>
-  <script type="module" src="./src/prototype-state-panel.js?v=0.5.1-exp1"></script>
+  <script type="module" src="./src/bootstrap-experimental-memory.js?v=0.5.2-exp1"></script>
+  <script type="module" src="./src/experimental-memory-ui.js?v=0.5.2-exp1"></script>
+  <script type="module" src="./src/prototype-state-panel.js?v=0.5.2-exp1"></script>
 </body>
 </html>
