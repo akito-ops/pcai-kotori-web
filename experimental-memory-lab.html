@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'">
+<title>PCAI Experimental Memory Lab</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main class="app-shell">
+<section class="chat-card">
+<p class="kicker">PROJECT CHOBITS / EXPERIMENTAL MEMORY</p>
+<h1>Memory Lab</h1>
+<p>正本記憶を変更せず、新しいImportance / Recall Rankingを手動で試す実験画面です。</p>
+<div class="composer">
+<textarea id="lab-query" rows="2" maxlength="800" placeholder="例：佐渡旅行のカモメの話"></textarea>
+<button id="lab-run" class="send" type="button">比較する</button>
+</div>
+<div class="quick-actions">
+<button id="lab-refresh" type="button">記憶を再読込</button>
+<a href="./index.html">通常画面へ戻る</a>
+</div>
+<p id="lab-status" class="privacy"></p>
+</section>
+<section class="grid">
+<section class="memory-card">
+<h2>Shadow Recall</h2>
+<ol id="shadow-list" class="memory-list"></ol>
+</section>
+<section class="memory-card">
+<h2>Legacy Recall</h2>
+<ol id="legacy-list" class="memory-list"></ol>
+</section>
+</section>
+<section class="memory-card" style="margin-top:18px">
+<h2>安全境界</h2>
+<ul>
+<li>正本localStorageは読み取りのみ</li>
+<li>Persona Coreを書き換えない</li>
+<li>LLMへ送信しない</li>
+<li>自発発話しない</li>
+<li>ページを閉じても記憶順位の評価結果は保存しない</li>
+</ul>
+</section>
+</main>
+<script type="module" src="./src/experimental-memory-lab.js"></script>
+</body>
+</html>
