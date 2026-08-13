@@ -19,6 +19,7 @@ on:
       - feature/memory-recall-evaluation-harness
       - feature/experimental-memory-runtime
       - feature/experimental-memory-chat-v1
+      - feature/pcai-prototype-state-panel-v1
   pull_request:
     branches:
       - main
