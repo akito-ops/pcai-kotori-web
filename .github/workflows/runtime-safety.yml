@@ -10,6 +10,7 @@ on:
       - feature/current-self-reply-selection
       - feature/initiative-shadow-v1
       - feature/initiative-shadow-periodic
+      - feature/pending-mind-permission-shadow
   pull_request:
     branches:
       - main
