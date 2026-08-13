@@ -18,6 +18,7 @@ on:
       - feature/memory-recall-diff-observer
       - feature/memory-recall-evaluation-harness
       - feature/experimental-memory-runtime
+      - feature/experimental-memory-chat-v1
   pull_request:
     branches:
       - main
