@@ -43,11 +43,5 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Syntax check
-        run: npm run check:syntax
-
-      - name: Live2D contract
-        run: node tests/live2d-runtime-gate.test.mjs
-
-      - name: Existing contract suite
-        run: node scripts/run-contracts-diagnostic.mjs
+      - name: Run contract tests
+        run: npm test
