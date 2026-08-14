@@ -1,6 +1,8 @@
 import { inspectLive2DRuntime } from './runtime-gate.js';
+import { createCoreDirectRenderer } from './core-direct-renderer.js';
 
 const MODEL_URL = './assets/live2d/kotori/kotori.model3.json';
+const MODEL_BASE_URL = './assets/live2d/kotori/';
 
 function ensureHost(documentRef) {
   const host = documentRef.getElementById('live2d-avatar-host') || documentRef.querySelector('.hero .avatar');
@@ -32,7 +34,14 @@ function ensureHost(documentRef) {
 function setStatus(host, state) {
   const badge = host.querySelector('[data-live2d-status]');
   if (!badge) return;
-  badge.textContent = state === 'ready' ? 'Live2D READY' : state === 'core_missing' ? 'Live2D Core待ち' : 'Live2D準備中';
+  const labels={
+    ready:'Live2D READY',
+    active:'Live2D ACTIVE',
+    core_missing:'Live2D Core待ち',
+    manifest_invalid:'Live2D manifest確認',
+    render_failed:'Live2D fallback'
+  };
+  badge.textContent = labels[state] || 'Live2D準備中';
   badge.dataset.state = state;
 }
 
@@ -40,6 +49,22 @@ async function loadManifest(fetchImpl = fetch) {
   const response = await fetchImpl(MODEL_URL, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Live2D manifest load failed: ${response.status}`);
   return response.json();
+}
+
+function attachSpeechBridge(renderer){
+  const synth=globalThis.speechSynthesis;
+  if(!synth || typeof synth.speak!=='function' || synth.__pcaiLive2DPatched) return;
+  const originalSpeak=synth.speak.bind(synth);
+  synth.speak=function(utterance){
+    if(utterance && typeof utterance.addEventListener==='function'){
+      utterance.addEventListener('start',()=>renderer.startSpeaking(),{once:true});
+      const stop=()=>renderer.stopSpeaking();
+      utterance.addEventListener('end',stop,{once:true});
+      utterance.addEventListener('error',stop,{once:true});
+    }
+    return originalSpeak(utterance);
+  };
+  try{Object.defineProperty(synth,'__pcaiLive2DPatched',{value:true,configurable:false});}catch{}
 }
 
 export async function bootLive2DAvatar({ documentRef = document, fetchImpl = fetch } = {}) {
@@ -51,26 +76,48 @@ export async function bootLive2DAvatar({ documentRef = document, fetchImpl = fet
   let manifest = null;
   try {
     manifest = await loadManifest(fetchImpl);
-  } catch {
+  } catch (error) {
+    console.warn('PCAI Live2D manifest load failed',error);
     setStatus(host, 'manifest_invalid');
+    fallback?.removeAttribute('hidden');
+    if (canvas) canvas.hidden = true;
     return Object.freeze({ mounted: true, active: false, reason: 'manifest_invalid' });
   }
 
   const readiness = inspectLive2DRuntime({ manifest });
   setStatus(host, readiness.reason);
+  if (!readiness.ready) {
+    fallback?.removeAttribute('hidden');
+    if (canvas) canvas.hidden = true;
+    return Object.freeze({ mounted: true, active: false, reason: readiness.reason, manifest });
+  }
 
-  // The official Cubism Core/Framework renderer is attached in a later step.
-  // Until then the known-good static avatar remains visible and the experimental
-  // page cannot break simply because the SDK is absent.
-  fallback?.removeAttribute('hidden');
-  if (canvas) canvas.hidden = true;
-
-  return Object.freeze({
-    mounted: true,
-    active: false,
-    reason: readiness.ready ? 'adapter_pending' : readiness.reason,
-    manifest
-  });
+  try{
+    const renderer=await createCoreDirectRenderer({canvas,manifest,modelBaseUrl:MODEL_BASE_URL,fetchImpl});
+    renderer.start();
+    attachSpeechBridge(renderer);
+    if(fallback) fallback.hidden=true;
+    if(canvas) canvas.hidden=false;
+    setStatus(host,'active');
+    return Object.freeze({
+      mounted:true,
+      active:true,
+      reason:'active',
+      manifest,
+      startSpeaking:()=>renderer.startSpeaking(),
+      stopSpeaking:()=>renderer.stopSpeaking(),
+      setMouthOpenY:value=>renderer.setMouthOpenY(value),
+      inspect:()=>renderer.inspect(),
+      autonomousActions:false,
+      toolExecution:false
+    });
+  }catch(error){
+    console.warn('PCAI Live2D renderer failed; static fallback retained',error);
+    fallback?.removeAttribute('hidden');
+    if(canvas) canvas.hidden=true;
+    setStatus(host,'render_failed');
+    return Object.freeze({mounted:true,active:false,reason:'render_failed',manifest,error:String(error?.message||error)});
+  }
 }
 
 if (typeof document !== 'undefined') {
