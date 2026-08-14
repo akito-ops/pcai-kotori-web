@@ -23,6 +23,7 @@ on:
       - feature/pending-mind-manual-disclosure-v1
       - feature/one-shot-initiative-optin-v1
       - feature/live2d-web-v1
+      - feature/live2d-core-direct-v1
   pull_request:
     branches:
       - main
