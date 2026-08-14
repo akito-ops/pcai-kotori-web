@@ -135,6 +135,11 @@ function resizeCanvas(gl,canvas){
   gl.viewport(0,0,width,height);
 }
 
+function resolveBaseUrl(modelBaseUrl){
+  const pageBase=globalThis.document?.baseURI||globalThis.location?.href||'http://localhost/';
+  return new URL(modelBaseUrl,pageBase);
+}
+
 export async function createCoreDirectRenderer({
   canvas,
   manifest,
@@ -151,14 +156,15 @@ export async function createCoreDirectRenderer({
   const gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:true})||canvas.getContext('experimental-webgl');
   if(!gl) throw new Error('WebGL is unavailable');
 
-  const mocBuffer=await fetchArrayBuffer(new URL(manifest.FileReferences.Moc,modelBaseUrl),fetchImpl);
+  const baseUrl=resolveBaseUrl(modelBaseUrl);
+  const mocBuffer=await fetchArrayBuffer(new URL(manifest.FileReferences.Moc,baseUrl),fetchImpl);
   const moc=core.Moc.fromArrayBuffer(mocBuffer);
   if(!moc) throw new Error('Live2D Moc load failed');
   const model=core.Model.fromMoc(moc);
   if(!model){ moc._release(); throw new Error('Live2D model creation failed'); }
   model.update();
 
-  const image=await loadImage(new URL(manifest.FileReferences.Textures[0],modelBaseUrl),ImageCtor);
+  const image=await loadImage(new URL(manifest.FileReferences.Textures[0],baseUrl),ImageCtor);
   const texture=createTexture(gl,image);
   const program=createProgram(gl);
   const resources=buildDrawResources(gl,model);
@@ -202,6 +208,11 @@ export async function createCoreDirectRenderer({
     model.update();
   }
 
+  function colorAt(colors,index,fallback){
+    const offset=index*4;
+    return [colors[offset]??fallback,colors[offset+1]??fallback,colors[offset+2]??fallback,colors[offset+3]??1];
+  }
+
   function renderFrame(timestampMs=0){
     if(!running) return;
     const seconds=timestampMs/1000;
@@ -222,10 +233,10 @@ export async function createCoreDirectRenderer({
       gl.bindBuffer(gl.ARRAY_BUFFER,r.uv);
       gl.enableVertexAttribArray(loc.uv); gl.vertexAttribPointer(loc.uv,2,gl.FLOAT,false,0,0);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,r.indices);
-      const m=d.multiplyColors, s=d.screenColors, ci=index*4;
+      const m=colorAt(d.multiplyColors,index,1), s=colorAt(d.screenColors,index,0);
       gl.uniform4f(loc.baseColor,1,1,1,d.opacities[index]);
-      gl.uniform4f(loc.multiplyColor,m[ci]??1,m[ci+1]??1,m[ci+2]??1,m[ci+3]??1);
-      gl.uniform4f(loc.screenColor,s[ci]??0,s[ci+1]??0,s[ci+2]??0,s[ci+3]??0);
+      gl.uniform4f(loc.multiplyColor,m[0],m[1],m[2],m[3]);
+      gl.uniform4f(loc.screenColor,s[0],s[1],s[2],s[3]);
       gl.drawElements(gl.TRIANGLES,d.indexCounts[index],gl.UNSIGNED_SHORT,0);
     }
     d.resetDynamicFlags();
