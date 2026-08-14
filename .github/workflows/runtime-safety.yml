@@ -50,4 +50,4 @@ jobs:
         run: node tests/live2d-runtime-gate.test.mjs
 
       - name: Existing contract suite
-        run: npm run test:contracts
+        run: node scripts/run-contracts-diagnostic.mjs
