@@ -1,3 +1,5 @@
+import './live2d/avatar-shell.js';
+
 const api=window.PCAIOneShotInitiative;
 const button=document.getElementById('one-shot-initiative-btn');
 const badge=document.getElementById('one-shot-initiative-badge');
