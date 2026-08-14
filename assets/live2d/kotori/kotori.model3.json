@@ -1,0 +1,10 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "kotori.moc3",
+    "Textures": [
+      "texture_00.png"
+    ],
+    "DisplayInfo": "kotori.cdi3.json"
+  }
+}
