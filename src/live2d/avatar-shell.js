@@ -2,6 +2,33 @@ import { inspectLive2DRuntime } from './runtime-gate.js';
 
 const MODEL_URL = './assets/live2d/kotori/kotori.model3.json';
 
+function ensureHost(documentRef) {
+  const host = documentRef.getElementById('live2d-avatar-host') || documentRef.querySelector('.hero .avatar');
+  if (!host) return null;
+  host.id = 'live2d-avatar-host';
+  host.classList.add('live2d-avatar-host');
+
+  const image = host.querySelector('img');
+  if (image) image.dataset.live2dFallback = '';
+
+  if (!host.querySelector('canvas')) {
+    const canvas = documentRef.createElement('canvas');
+    canvas.className = 'live2d-avatar-canvas';
+    canvas.hidden = true;
+    canvas.setAttribute('aria-label', '篝火ことり Live2D');
+    host.appendChild(canvas);
+  }
+
+  if (!host.querySelector('[data-live2d-status]')) {
+    const badge = documentRef.createElement('span');
+    badge.className = 'live2d-avatar-status';
+    badge.dataset.live2dStatus = '';
+    badge.textContent = 'Live2D準備中';
+    host.appendChild(badge);
+  }
+  return host;
+}
+
 function setStatus(host, state) {
   const badge = host.querySelector('[data-live2d-status]');
   if (!badge) return;
@@ -16,7 +43,7 @@ async function loadManifest(fetchImpl = fetch) {
 }
 
 export async function bootLive2DAvatar({ documentRef = document, fetchImpl = fetch } = {}) {
-  const host = documentRef.getElementById('live2d-avatar-host');
+  const host = ensureHost(documentRef);
   if (!host) return Object.freeze({ mounted: false, reason: 'host_missing' });
 
   const fallback = host.querySelector('[data-live2d-fallback]');
@@ -32,18 +59,18 @@ export async function bootLive2DAvatar({ documentRef = document, fetchImpl = fet
   const readiness = inspectLive2DRuntime({ manifest });
   setStatus(host, readiness.reason);
 
-  // Rendering is deliberately gated. The official Cubism Core/Framework adapter
-  // is attached in a later step. Until then the current production-safe static
-  // avatar remains visible.
-  if (!readiness.ready) {
-    fallback?.removeAttribute('hidden');
-    if (canvas) canvas.hidden = true;
-    return Object.freeze({ mounted: true, active: false, reason: readiness.reason, manifest });
-  }
-
+  // The official Cubism Core/Framework renderer is attached in a later step.
+  // Until then the known-good static avatar remains visible and the experimental
+  // page cannot break simply because the SDK is absent.
   fallback?.removeAttribute('hidden');
   if (canvas) canvas.hidden = true;
-  return Object.freeze({ mounted: true, active: false, reason: 'adapter_pending', manifest });
+
+  return Object.freeze({
+    mounted: true,
+    active: false,
+    reason: readiness.ready ? 'adapter_pending' : readiness.reason,
+    manifest
+  });
 }
 
 if (typeof document !== 'undefined') {
