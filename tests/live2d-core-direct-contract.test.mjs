@@ -14,6 +14,7 @@ assert.ok(mocStat.size>1000,'moc3 must be present');
 assert.ok(textureStat.size>10000,'Live2D texture must be present');
 assert.match(html,/vendor\/live2d\/live2dcubismcore\.min\.js/);
 assert.match(html,/src\/live2d\/avatar-shell\.js/);
+assert.match(html,/connect-src\s+'self'\s+https:\/\/pcai-kotori-backend\.siryuuakito\.workers\.dev/,'CSP must allow same-origin Live2D asset fetches');
 assert.equal(manifest.FileReferences.Moc,'kotori.moc3');
 assert.deepEqual(manifest.FileReferences.Textures,['texture_00.png']);
 for(const id of ['ParamEyeLOpen','ParamEyeROpen','ParamMouthOpenY','ParamBreath']) assert.match(renderer,new RegExp(id));
