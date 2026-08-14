@@ -4,11 +4,21 @@ import { createCoreDirectRenderer } from './core-direct-renderer.js';
 const MODEL_URL = './assets/live2d/kotori/kotori.model3.json';
 const MODEL_BASE_URL = './assets/live2d/kotori/';
 
+function ensureStylesheet(documentRef){
+  if(documentRef.querySelector?.('link[data-live2d-avatar-style]')) return;
+  const link=documentRef.createElement('link');
+  link.rel='stylesheet';
+  link.href='./live2d-avatar.css';
+  link.dataset.live2dAvatarStyle='';
+  documentRef.head?.appendChild(link);
+}
+
 function ensureHost(documentRef) {
-  const host = documentRef.getElementById('live2d-avatar-host') || documentRef.querySelector('.hero .avatar');
+  ensureStylesheet(documentRef);
+  const host = documentRef.getElementById('live2d-avatar-host') || documentRef.querySelector?.('.hero .avatar');
   if (!host) return null;
   host.id = 'live2d-avatar-host';
-  host.classList.add('live2d-avatar-host');
+  host.classList?.add('live2d-avatar-host');
 
   const image = host.querySelector('img');
   if (image) image.dataset.live2dFallback = '';
@@ -34,13 +44,7 @@ function ensureHost(documentRef) {
 function setStatus(host, state) {
   const badge = host.querySelector('[data-live2d-status]');
   if (!badge) return;
-  const labels={
-    ready:'Live2D READY',
-    active:'Live2D ACTIVE',
-    core_missing:'Live2D Core待ち',
-    manifest_invalid:'Live2D manifest確認',
-    render_failed:'Live2D fallback'
-  };
+  const labels={ready:'Live2D READY',active:'Live2D ACTIVE',core_missing:'Live2D Core待ち',manifest_invalid:'Live2D manifest確認',render_failed:'Live2D fallback'};
   badge.textContent = labels[state] || 'Live2D準備中';
   badge.dataset.state = state;
 }
@@ -99,18 +103,7 @@ export async function bootLive2DAvatar({ documentRef = document, fetchImpl = fet
     if(fallback) fallback.hidden=true;
     if(canvas) canvas.hidden=false;
     setStatus(host,'active');
-    return Object.freeze({
-      mounted:true,
-      active:true,
-      reason:'active',
-      manifest,
-      startSpeaking:()=>renderer.startSpeaking(),
-      stopSpeaking:()=>renderer.stopSpeaking(),
-      setMouthOpenY:value=>renderer.setMouthOpenY(value),
-      inspect:()=>renderer.inspect(),
-      autonomousActions:false,
-      toolExecution:false
-    });
+    return Object.freeze({mounted:true,active:true,reason:'active',manifest,startSpeaking:()=>renderer.startSpeaking(),stopSpeaking:()=>renderer.stopSpeaking(),setMouthOpenY:value=>renderer.setMouthOpenY(value),inspect:()=>renderer.inspect(),autonomousActions:false,toolExecution:false});
   }catch(error){
     console.warn('PCAI Live2D renderer failed; static fallback retained',error);
     fallback?.removeAttribute('hidden');
@@ -122,11 +115,6 @@ export async function bootLive2DAvatar({ documentRef = document, fetchImpl = fet
 
 if (typeof document !== 'undefined') {
   bootLive2DAvatar().then((state) => {
-    globalThis.PCAILive2D = Object.freeze({
-      ...state,
-      modelUrl: MODEL_URL,
-      autonomousActions: false,
-      toolExecution: false
-    });
+    globalThis.PCAILive2D = Object.freeze({...state,modelUrl: MODEL_URL,autonomousActions: false,toolExecution: false});
   });
 }
