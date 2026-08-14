@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
 
+const RealDate=Date;
+const FIXED_NOW='2026-08-13T07:00:00.000Z';
+class FixedDate extends RealDate{
+  constructor(...args){super(...(args.length?args:[FIXED_NOW]));}
+  static now(){return new RealDate(FIXED_NOW).getTime();}
+}
+globalThis.Date=FixedDate;
+
 class FakeElement {
   constructor(tagName='div'){
     this.tagName=String(tagName).toUpperCase();
