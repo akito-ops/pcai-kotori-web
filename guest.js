@@ -1,7 +1,13 @@
+const MAX_GUEST_MS = 24 * 60 * 60 * 1000;
+const CLOCK_SKEW_MS = 5 * 60 * 1000;
+
 const params = new URLSearchParams(location.search);
 const expiresRaw = params.get('expires');
 const expiresAt = expiresRaw ? Date.parse(expiresRaw) : NaN;
-const expired = Number.isFinite(expiresAt) && Date.now() > expiresAt;
+const now = Date.now();
+const validExpiry = Number.isFinite(expiresAt)
+  && expiresAt > now
+  && expiresAt - now <= MAX_GUEST_MS + CLOCK_SKEW_MS;
 
 const chat = document.getElementById('chat');
 const form = document.getElementById('chat-form');
@@ -36,17 +42,27 @@ function replyTo(text) {
   return 'うん、聞いてるよ。見学版だから機能は絞ってあるけど、ことりがどういう雰囲気のPCAIか試してみてね。';
 }
 
-function disableExpired() {
-  if (!expired) return;
-  status.textContent = '見学期限切れ';
-  note.textContent = 'この見学リンクは有効期限が切れています。';
+function disableGuest(reason) {
+  status.textContent = reason === 'expired' ? '見学期限切れ' : '見学リンク無効';
+  note.textContent = reason === 'expired'
+    ? 'この見学リンクは有効期限が切れています。'
+    : 'この見学リンクは無効です。秘書アプリから新しいリンクを発行してください。';
   input.disabled = true;
   send.disabled = true;
   document.querySelectorAll('[data-prompt]').forEach(button => { button.disabled = true; });
 }
 
+function isActive() {
+  if (!validExpiry) return false;
+  if (Date.now() >= expiresAt) {
+    disableGuest('expired');
+    return false;
+  }
+  return true;
+}
+
 function submit(text) {
-  if (expired || !text.trim()) return;
+  if (!isActive() || !text.trim()) return;
   const clean = text.trim().slice(0, 400);
   turns.push({ role: 'user', content: clean, at: new Date().toISOString() });
   add('user', clean);
@@ -73,5 +89,11 @@ document.querySelectorAll('[data-prompt]').forEach(button => {
   button.addEventListener('click', () => submit(button.dataset.prompt || ''));
 });
 
-disableExpired();
-if (!expired) add('assistant', 'こんことー！ 篝火ことりです。これは見学用の一時セッションだよ。気軽に話しかけてみてね。');
+if (!Number.isFinite(expiresAt) || expiresAt - now > MAX_GUEST_MS + CLOCK_SKEW_MS) {
+  disableGuest('invalid');
+} else if (expiresAt <= now) {
+  disableGuest('expired');
+} else {
+  add('assistant', 'こんことー！ 篝火ことりです。これは見学用の一時セッションだよ。気軽に話しかけてみてね。');
+  window.setTimeout(() => disableGuest('expired'), Math.max(0, expiresAt - Date.now()));
+}
